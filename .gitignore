@@ -1,0 +1,9 @@
+node_modules/
+.env
+data/
+models/*.bin
+vendor/
+coverage/
+samples/*.wav
+*.log
+.DS_Store

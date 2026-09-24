@@ -1,0 +1,25 @@
+{
+  "name": "stt-assessment",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/server.ts",
+    "start": "bun src/server.ts",
+    "setup": "bun scripts/setup-whisper.ts",
+    "model:download": "bun scripts/download-model.ts",
+    "test": "bun test --cwd ./tests",
+    "typecheck": "bunx tsc --noEmit",
+    "lint": "bunx biome check .",
+    "format": "bunx biome check --write .",
+    "check": "bun run typecheck && bun run lint && bun run test"
+  },
+  "dependencies": {
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.4",
+    "@types/bun": "^1.3.5",
+    "typescript": "^5.9.2"
+  }
+}
