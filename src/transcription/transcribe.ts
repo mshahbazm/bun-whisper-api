@@ -57,7 +57,6 @@ export async function transcribeAudio(
 
     return {
       ...output,
-      segments: [...output.segments],
       durationSeconds,
     };
   } finally {

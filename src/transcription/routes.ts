@@ -12,6 +12,7 @@ export function createApp(transcribeAudio: TranscribeAudio) {
 
   app.post("/v1/transcriptions", async (context) => {
     const contentType = context.req.header("content-type") ?? "";
+
     if (!contentType.toLowerCase().startsWith("multipart/form-data")) {
       throw new ValidationError(
         "INVALID_CONTENT_TYPE",
@@ -54,8 +55,10 @@ export function createApp(transcribeAudio: TranscribeAudio) {
   );
 
   app.onError((error, context) => {
-    if (!(error instanceof AppError)) console.error(error);
     const publicError = toPublicError(error);
+    if (!(error instanceof AppError) || publicError.statusCode >= 500) {
+      console.error(error);
+    }
     return context.json(
       {
         error: {

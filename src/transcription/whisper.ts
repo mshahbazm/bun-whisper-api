@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { z } from "zod";
 import { runCommand } from "../command";
-import { DependencyError } from "../errors";
+import { DependencyError, ValidationError } from "../errors";
 import type { Segment, TranscriptionOptions } from "./types";
 
 export interface TranscriptionOutput {
@@ -71,7 +71,7 @@ export async function transcribeWithWhisper(
   const outputBase = join(outputDirectory, "whisper-result");
 
   try {
-    await runCommand(
+    const { stderr } = await runCommand(
       config.cliPath,
       [
         "--model",
@@ -89,7 +89,14 @@ export async function transcribeWithWhisper(
       ],
       config.timeoutMs,
     );
+    if (stderr.includes("error: unknown language")) {
+      throw new ValidationError(
+        "INVALID_LANGUAGE",
+        'Language must be "auto" or a language supported by whisper.cpp.',
+      );
+    }
   } catch (error) {
+    if (error instanceof ValidationError) throw error;
     throw new DependencyError("Audio transcription failed.", {
       cause: error,
     });

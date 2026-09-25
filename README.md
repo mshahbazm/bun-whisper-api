@@ -22,7 +22,7 @@ bun run setup
 bun run start
 ```
 
-`bun run setup` downloads and builds the pinned version of `whisper.cpp`, then downloads the model selected by `WHISPER_MODEL`.
+On its first run, `bun run setup` clones `whisper.cpp` v1.9.4. It then builds the local checkout and downloads the model selected by `WHISPER_MODEL` when needed.
 
 Upload the included three-minute sample:
 
