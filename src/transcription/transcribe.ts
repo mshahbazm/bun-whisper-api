@@ -20,7 +20,7 @@ export async function transcribeAudio(
   language: string | undefined,
   options: TranscribeAudioOptions,
 ): Promise<Transcript> {
-  validateFile(file, options.maxUploadBytes);
+  validateUpload(file, options.maxUploadBytes);
 
   const transcriptionOptions = TranscriptionOptionsSchema.safeParse({
     language: language ?? options.defaultLanguage,
@@ -66,7 +66,7 @@ export async function transcribeAudio(
   }
 }
 
-function validateFile(file: File, maxUploadBytes: number): void {
+function validateUpload(file: File, maxUploadBytes: number): void {
   if (file.size === 0) {
     throw new ValidationError(
       "EMPTY_FILE",
