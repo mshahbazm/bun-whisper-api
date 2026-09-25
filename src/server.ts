@@ -1,10 +1,9 @@
 import { loadConfig } from "./config";
-import { createRequestHandler } from "./http/router";
-import { JobQueue } from "./jobs/queue";
-import { TranscriptionJobService } from "./jobs/service";
-import { JobStore } from "./jobs/store";
-import { TranscriptionPipeline } from "./pipeline";
-import { WhisperCppTranscriber } from "./transcription/whisper-cpp";
+import { createRequestHandler } from "./transcription/api";
+import { JobQueue, JobStore } from "./transcription/jobs";
+import { TranscriptionPipeline } from "./transcription/pipeline";
+import { TranscriptionService } from "./transcription/service";
+import { WhisperCppTranscriber } from "./transcription/whisper";
 
 const config = loadConfig();
 const transcriber = new WhisperCppTranscriber({
@@ -20,7 +19,7 @@ const pipeline = new TranscriptionPipeline({
 });
 const store = new JobStore(config.jobTtlMs);
 const queue = new JobQueue(config.transcriptionConcurrency);
-const jobs = new TranscriptionJobService({
+const jobs = new TranscriptionService({
   store,
   queue,
   pipeline,

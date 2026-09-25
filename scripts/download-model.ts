@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { loadConfig, type modelNames, WhisperModelSchema } from "../src/config";
-import { runProcess } from "../src/infrastructure/process";
+import { runProcess } from "../src/process";
 
 type ModelName = (typeof modelNames)[number];
 

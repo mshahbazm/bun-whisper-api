@@ -1,7 +1,7 @@
 import { copyFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { loadConfig } from "../src/config";
-import { runProcess } from "../src/infrastructure/process";
+import { runProcess } from "../src/process";
 import { downloadModel } from "./download-model";
 
 const whisperVersion = "v1.9.4";

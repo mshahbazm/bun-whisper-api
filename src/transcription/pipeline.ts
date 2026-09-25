@@ -1,9 +1,8 @@
 import { join } from "node:path";
-import { normalizeAudio } from "./audio/normalize";
-import { probeAudio } from "./audio/probe";
-import type { Transcript, TranscriptionOptions } from "./domain";
-import { ValidationError } from "./errors";
-import type { Transcriber } from "./transcription/transcriber";
+import { ValidationError } from "../errors";
+import { normalizeAudio, probeAudio } from "./audio";
+import type { Transcript, TranscriptionOptions } from "./types";
+import type { Transcriber } from "./whisper";
 
 interface PipelineOptions {
   readonly transcriber: Transcriber;

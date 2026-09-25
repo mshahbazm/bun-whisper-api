@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ValidationError } from "../errors";
-import { runProcess } from "../infrastructure/process";
+import { runProcess } from "../process";
 
 const ProbeOutputSchema = z.object({
   streams: z.array(
@@ -88,11 +88,45 @@ export async function probeAudio(
   }
 
   const sampleRate = Number(audioStream.sample_rate);
-
   return {
     durationSeconds,
     codec: audioStream.codec_name ?? null,
     sampleRate: Number.isFinite(sampleRate) ? sampleRate : null,
     channels: audioStream.channels ?? null,
   };
+}
+
+export async function normalizeAudio(
+  inputPath: string,
+  outputPath: string,
+  timeoutMs: number,
+): Promise<void> {
+  try {
+    await runProcess(
+      "ffmpeg",
+      [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-i",
+        inputPath,
+        "-vn",
+        "-ac",
+        "1",
+        "-ar",
+        "16000",
+        "-c:a",
+        "pcm_s16le",
+        outputPath,
+      ],
+      { timeoutMs },
+    );
+  } catch (error) {
+    throw new ValidationError(
+      "UNSUPPORTED_AUDIO",
+      "The provided audio could not be converted for transcription.",
+      { cause: error },
+    );
+  }
 }

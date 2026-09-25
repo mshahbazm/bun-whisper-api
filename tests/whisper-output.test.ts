@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseWhisperOutput } from "../src/transcription/whisper-output";
+import { parseWhisperOutput } from "../src/transcription/whisper";
 
 describe("parseWhisperOutput", () => {
   test("normalizes whisper.cpp timestamps and text", () => {

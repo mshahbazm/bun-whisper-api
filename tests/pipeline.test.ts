@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { TranscriptionPipeline } from "../src/pipeline";
-import type { Transcriber } from "../src/transcription/transcriber";
+import { TranscriptionPipeline } from "../src/transcription/pipeline";
+import type { Transcriber } from "../src/transcription/whisper";
 import { createSilentWav } from "./helpers";
 
 describe("TranscriptionPipeline", () => {

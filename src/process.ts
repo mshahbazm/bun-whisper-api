@@ -1,11 +1,6 @@
-import { DependencyError } from "../errors";
+import { DependencyError } from "./errors";
 
-export interface ProcessResult {
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
-export interface ProcessOptions {
+interface ProcessOptions {
   readonly timeoutMs: number;
 }
 
@@ -13,7 +8,7 @@ export async function runProcess(
   executable: string,
   args: readonly string[],
   options: ProcessOptions,
-): Promise<ProcessResult> {
+): Promise<{ readonly stdout: string; readonly stderr: string }> {
   const process = Bun.spawn([executable, ...args], {
     stdout: "pipe",
     stderr: "pipe",

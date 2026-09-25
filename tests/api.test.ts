@@ -2,16 +2,15 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createRequestHandler } from "../src/http/router";
-import { JobQueue } from "../src/jobs/queue";
-import { TranscriptionJobService } from "../src/jobs/service";
-import { JobStore } from "../src/jobs/store";
+import { createRequestHandler } from "../src/transcription/api";
+import { JobQueue, JobStore } from "../src/transcription/jobs";
+import { TranscriptionService } from "../src/transcription/service";
 import { createSilentWav } from "./helpers";
 
 describe("transcription API", () => {
   test("accepts an audio file and exposes the completed job", async () => {
     const root = await mkdtemp(join(tmpdir(), "stt-api-test-"));
-    const jobs = new TranscriptionJobService({
+    const jobs = new TranscriptionService({
       store: new JobStore(60_000),
       queue: new JobQueue(1),
       workDirectory: root,
@@ -67,7 +66,7 @@ describe("transcription API", () => {
 
   test("rejects requests without an audio file", async () => {
     const root = await mkdtemp(join(tmpdir(), "stt-api-test-"));
-    const jobs = new TranscriptionJobService({
+    const jobs = new TranscriptionService({
       store: new JobStore(60_000),
       queue: new JobQueue(1),
       workDirectory: root,

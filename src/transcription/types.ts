@@ -24,8 +24,6 @@ export const TranscriptionOptionsSchema = z.object({
 
 export type TranscriptionOptions = z.infer<typeof TranscriptionOptionsSchema>;
 
-export type JobStatus = "queued" | "processing" | "completed" | "failed";
-
 interface JobBase {
   readonly id: string;
   readonly createdAt: string;

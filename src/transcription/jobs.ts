@@ -1,3 +1,4 @@
+import { NotFoundError } from "../errors";
 import type {
   CompletedJob,
   FailedJob,
@@ -5,8 +6,38 @@ import type {
   QueuedJob,
   Transcript,
   TranscriptionJob,
-} from "../domain";
-import { NotFoundError } from "../errors";
+} from "./types";
+
+type QueueTask = () => Promise<void>;
+
+export class JobQueue {
+  private readonly pending: QueueTask[] = [];
+  private active = 0;
+
+  public constructor(private readonly concurrency: number) {}
+
+  public enqueue(task: QueueTask): void {
+    this.pending.push(task);
+    this.drain();
+  }
+
+  public get activeCount(): number {
+    return this.active;
+  }
+
+  private drain(): void {
+    while (this.active < this.concurrency) {
+      const task = this.pending.shift();
+      if (!task) return;
+
+      this.active += 1;
+      void task().finally(() => {
+        this.active -= 1;
+        this.drain();
+      });
+    }
+  }
+}
 
 export class JobStore {
   private readonly jobs = new Map<string, TranscriptionJob>();

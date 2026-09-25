@@ -1,15 +1,15 @@
-import { join } from "node:path";
-import type { Transcript, TranscriptionOptions } from "../domain";
-import { type TranscriptionJob, TranscriptionOptionsSchema } from "../domain";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { join, resolve, sep } from "node:path";
 import { AppError, toPublicError, ValidationError } from "../errors";
-import {
-  createJobDirectory,
-  removeJobDirectory,
-} from "../infrastructure/temporary-files";
-import type { JobQueue } from "./queue";
-import type { JobStore } from "./store";
+import type { JobQueue, JobStore } from "./jobs";
+import type {
+  Transcript,
+  TranscriptionJob,
+  TranscriptionOptions,
+} from "./types";
+import { TranscriptionOptionsSchema } from "./types";
 
-interface JobServiceOptions {
+interface ServiceOptions {
   readonly store: JobStore;
   readonly queue: JobQueue;
   readonly pipeline: {
@@ -24,8 +24,8 @@ interface JobServiceOptions {
   readonly defaultLanguage: string;
 }
 
-export class TranscriptionJobService {
-  public constructor(private readonly options: JobServiceOptions) {}
+export class TranscriptionService {
+  public constructor(private readonly options: ServiceOptions) {}
 
   public async submit(
     file: File,
@@ -57,13 +57,13 @@ export class TranscriptionJobService {
       );
     }
 
-    const workspace = await createJobDirectory(this.options.workDirectory);
+    const workspace = await createWorkspace(this.options.workDirectory);
     const inputPath = join(workspace, "input");
 
     try {
       await Bun.write(inputPath, file);
     } catch (error) {
-      await removeJobDirectory(this.options.workDirectory, workspace);
+      await removeWorkspace(this.options.workDirectory, workspace);
       throw new AppError(
         "UPLOAD_WRITE_FAILED",
         "The provided audio file could not be stored temporarily.",
@@ -90,7 +90,7 @@ export class TranscriptionJobService {
         });
       } finally {
         try {
-          await removeJobDirectory(this.options.workDirectory, workspace);
+          await removeWorkspace(this.options.workDirectory, workspace);
         } catch (error) {
           console.error("Failed to clean up transcription workspace", error);
         }
@@ -103,4 +103,20 @@ export class TranscriptionJobService {
   public get(id: string): TranscriptionJob {
     return this.options.store.get(id);
   }
+}
+
+async function createWorkspace(root: string): Promise<string> {
+  await mkdir(root, { recursive: true });
+  return mkdtemp(join(root, "job-"));
+}
+
+async function removeWorkspace(root: string, directory: string): Promise<void> {
+  const resolvedRoot = `${resolve(root)}${sep}`;
+  const resolvedDirectory = resolve(directory);
+
+  if (!resolvedDirectory.startsWith(resolvedRoot)) {
+    throw new Error("Refusing to remove a directory outside the job root.");
+  }
+
+  await rm(resolvedDirectory, { recursive: true, force: true });
 }

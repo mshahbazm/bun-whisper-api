@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { JobQueue } from "../src/jobs/queue";
+import { JobQueue } from "../src/transcription/jobs";
 
 describe("JobQueue", () => {
   test("does not exceed its concurrency", async () => {
