@@ -5,55 +5,46 @@ import type { TranscriptionPipeline } from "./pipeline";
 import type { Transcript } from "./types";
 import { TranscriptionOptionsSchema } from "./types";
 
-interface ServiceOptions {
+interface TranscribeAudioOptions {
   readonly pipeline: TranscriptionPipeline;
   readonly workDirectory: string;
   readonly maxUploadBytes: number;
   readonly defaultLanguage: string;
 }
 
-export interface TranscriptionService {
-  transcribe(file: File, language?: string): Promise<Transcript>;
-}
+export async function transcribeAudio(
+  file: File,
+  language: string | undefined,
+  options: TranscribeAudioOptions,
+): Promise<Transcript> {
+  validateFile(file, options.maxUploadBytes);
 
-export function createTranscriptionService(
-  options: ServiceOptions,
-): TranscriptionService {
-  async function transcribe(
-    file: File,
-    language?: string,
-  ): Promise<Transcript> {
-    validateFile(file, options.maxUploadBytes);
-
-    const transcriptionOptions = TranscriptionOptionsSchema.safeParse({
-      language: language ?? options.defaultLanguage,
-    });
-    if (!transcriptionOptions.success) {
-      throw new ValidationError(
-        "INVALID_LANGUAGE",
-        'Language must be "auto" or a supported language code.',
-        { cause: transcriptionOptions.error },
-      );
-    }
-
-    const workspace = await createWorkspace(options.workDirectory);
-    const inputPath = join(workspace, "input");
-
-    try {
-      await saveUpload(inputPath, file);
-      return await options.pipeline(
-        inputPath,
-        workspace,
-        transcriptionOptions.data,
-      );
-    } finally {
-      await removeWorkspace(options.workDirectory, workspace).catch((error) => {
-        console.error("Failed to clean up transcription workspace", error);
-      });
-    }
+  const transcriptionOptions = TranscriptionOptionsSchema.safeParse({
+    language: language ?? options.defaultLanguage,
+  });
+  if (!transcriptionOptions.success) {
+    throw new ValidationError(
+      "INVALID_LANGUAGE",
+      'Language must be "auto" or a supported language code.',
+      { cause: transcriptionOptions.error },
+    );
   }
 
-  return { transcribe };
+  const workspace = await createWorkspace(options.workDirectory);
+  const inputPath = join(workspace, "input");
+
+  try {
+    await saveUpload(inputPath, file);
+    return await options.pipeline(
+      inputPath,
+      workspace,
+      transcriptionOptions.data,
+    );
+  } finally {
+    await removeWorkspace(options.workDirectory, workspace).catch((error) => {
+      console.error("Failed to clean up transcription workspace", error);
+    });
+  }
 }
 
 function validateFile(file: File, maxUploadBytes: number): void {

@@ -3,16 +3,14 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApp } from "../src/transcription/routes";
-import { createTranscriptionService } from "../src/transcription/service";
+import { transcribeAudio } from "../src/transcription/transcribe";
 import type { Transcript } from "../src/transcription/types";
 import { createSilentWav } from "./helpers";
 
 describe("transcription API", () => {
   test("exposes health and not-found responses", async () => {
-    const app = createApp({
-      async transcribe() {
-        throw new Error("unreachable");
-      },
+    const app = createApp(async () => {
+      throw new Error("unreachable");
     });
 
     const health = await app.request("http://localhost/health");
@@ -28,20 +26,23 @@ describe("transcription API", () => {
 
   test("accepts an audio file and returns the transcript", async () => {
     const root = await mkdtemp(join(tmpdir(), "stt-api-test-"));
-    const transcriptions = createTranscriptionService({
-      workDirectory: root,
-      maxUploadBytes: 1024 * 1024,
-      defaultLanguage: "auto",
-      async pipeline() {
-        return {
-          text: "Hello.",
-          language: "en",
-          durationSeconds: 1,
-          segments: [{ id: 0, startSeconds: 0, endSeconds: 1, text: "Hello." }],
-        };
-      },
-    });
-    const app = createApp(transcriptions);
+    const app = createApp((file, language) =>
+      transcribeAudio(file, language, {
+        workDirectory: root,
+        maxUploadBytes: 1024 * 1024,
+        defaultLanguage: "auto",
+        async pipeline() {
+          return {
+            text: "Hello.",
+            language: "en",
+            durationSeconds: 1,
+            segments: [
+              { id: 0, startSeconds: 0, endSeconds: 1, text: "Hello." },
+            ],
+          };
+        },
+      }),
+    );
     const body = new FormData();
     body.set("audio", createSilentWav());
 
@@ -65,33 +66,23 @@ describe("transcription API", () => {
   });
 
   test("rejects requests without an audio file", async () => {
-    const root = await mkdtemp(join(tmpdir(), "stt-api-test-"));
-    const transcriptions = createTranscriptionService({
-      workDirectory: root,
-      maxUploadBytes: 1024,
-      defaultLanguage: "auto",
-      async pipeline() {
-        throw new Error("unreachable");
-      },
+    const app = createApp(async () => {
+      throw new Error("unreachable");
     });
     const form = new FormData();
     form.set("language", "en");
-    try {
-      const response = await createApp(transcriptions).request(
-        new Request("http://localhost/v1/transcriptions", {
-          method: "POST",
-          body: form,
-        }),
-      );
-      expect(response.status).toBe(422);
-      expect(await response.json()).toEqual({
-        error: {
-          code: "AUDIO_REQUIRED",
-          message: 'A file is required in the "audio" field.',
-        },
-      });
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    const response = await app.request(
+      new Request("http://localhost/v1/transcriptions", {
+        method: "POST",
+        body: form,
+      }),
+    );
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "AUDIO_REQUIRED",
+        message: 'A file is required in the "audio" field.',
+      },
+    });
   });
 });

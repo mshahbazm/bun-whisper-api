@@ -69,7 +69,7 @@ POST audio file
     ↓
 Hono validates the multipart input
     ↓
-The service writes the file to a temporary workspace
+The transcription function writes the file to a temporary workspace
     ↓
 FFprobe validates the audio and reads its duration
     ↓
@@ -92,7 +92,7 @@ src/
 ├── process.ts                 Runs external commands safely
 └── transcription/
     ├── routes.ts              Hono routes and multipart request handling
-    ├── service.ts             Handles the uploaded file and cleanup
+    ├── transcribe.ts          Handles the uploaded file and cleanup
     ├── pipeline.ts            Runs the audio-to-transcript steps
     ├── audio.ts               FFprobe validation and FFmpeg conversion
     ├── whisper.ts             Runs whisper.cpp and parses its JSON
@@ -104,11 +104,11 @@ scripts/
 
 ## Code walkthrough
 
-Start with `src/server.ts`. It loads the configuration, creates the whisper.cpp transcriber and processing pipeline, passes the pipeline to the transcription service, and starts the Hono application.
+Start with `src/server.ts`. It loads the configuration, creates the whisper.cpp transcriber and processing pipeline, connects `transcribeAudio` to the Hono application, and starts the server.
 
-Next, `src/transcription/routes.ts` defines the health and transcription endpoints. The transcription route reads the multipart form, validates the `audio` file and optional language, and calls the service.
+Next, `src/transcription/routes.ts` defines the health and transcription endpoints. The transcription route reads the multipart form, validates the `audio` file and optional language, and calls `transcribeAudio`.
 
-`src/transcription/service.ts` checks the file size, creates an isolated temporary workspace, saves the uploaded file, and calls the pipeline. Cleanup runs in `finally`, whether transcription succeeds or fails.
+`src/transcription/transcribe.ts` checks the file size, creates an isolated temporary workspace, saves the uploaded file, and calls the pipeline. Cleanup runs in `finally`, whether transcription succeeds or fails.
 
 `src/transcription/pipeline.ts` connects the three processing steps. `audio.ts` validates and normalizes the input, then `whisper.ts` runs whisper.cpp and turns its output into the API response.
 
@@ -120,7 +120,7 @@ FFmpeg supports common inputs such as MP3, WAV, M4A, FLAC, and OGG. Every input 
 
 ### Long audio
 
-whisper.cpp processes long recordings through internal audio windows while preserving timestamps, so the service passes it the complete normalized recording.
+whisper.cpp processes long recordings through internal audio windows while preserving timestamps, so the pipeline passes it the complete normalized recording.
 
 If the selected transcription engine did not support long recordings, I would first split the audio around natural pauses. When no safe pause was available, I would use overlapping chunks and remove duplicated text while joining their results.
 

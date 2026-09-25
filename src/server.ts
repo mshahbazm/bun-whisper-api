@@ -1,7 +1,7 @@
 import { loadConfig } from "./config";
 import { createTranscriptionPipeline } from "./transcription/pipeline";
 import { createApp } from "./transcription/routes";
-import { createTranscriptionService } from "./transcription/service";
+import { transcribeAudio } from "./transcription/transcribe";
 import { createWhisperCppTranscriber } from "./transcription/whisper";
 
 const config = loadConfig();
@@ -19,14 +19,14 @@ const pipeline = createTranscriptionPipeline({
   mediaTimeoutMs: config.processTimeoutMs,
 });
 
-const transcriptions = createTranscriptionService({
-  pipeline,
-  workDirectory: config.workDirectory,
-  maxUploadBytes: config.maxUploadBytes,
-  defaultLanguage: config.whisper.language,
-});
-
-const app = createApp(transcriptions);
+const app = createApp((file, language) =>
+  transcribeAudio(file, language, {
+    pipeline,
+    workDirectory: config.workDirectory,
+    maxUploadBytes: config.maxUploadBytes,
+    defaultLanguage: config.whisper.language,
+  }),
+);
 
 const server = Bun.serve({
   hostname: config.host,

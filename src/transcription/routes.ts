@@ -1,9 +1,11 @@
 import { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { AppError, toPublicError, ValidationError } from "../errors";
-import type { TranscriptionService } from "./service";
+import type { Transcript } from "./types";
 
-export function createApp(transcriptions: TranscriptionService) {
+type TranscribeAudio = (file: File, language?: string) => Promise<Transcript>;
+
+export function createApp(transcribeAudio: TranscribeAudio) {
   const app = new Hono();
 
   app.get("/health", (context) => context.json({ status: "ok" }));
@@ -41,7 +43,7 @@ export function createApp(transcriptions: TranscriptionService) {
       );
     }
 
-    return context.json(await transcriptions.transcribe(audio, language));
+    return context.json(await transcribeAudio(audio, language));
   });
 
   app.notFound((context) =>
