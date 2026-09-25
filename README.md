@@ -69,7 +69,7 @@ POST audio file
     ↓
 Hono middleware validates the multipart input
     ↓
-transcribeAudio creates an isolated temporary workspace
+transcribeAudio creates a temporary folder for the request
     ↓
 prepareAudio checks the upload limits and stores the file
     ↓
@@ -77,7 +77,7 @@ prepareAudio validates it with FFprobe and normalizes it with FFmpeg
     ↓
 whisper.cpp produces text and segment timestamps
     ↓
-The temporary workspace is deleted
+The temporary folder is deleted
     ↓
 The API returns the transcript
 ```
@@ -107,7 +107,7 @@ Start with `src/index.ts`. It loads the configuration, connects whisper.cpp and 
 
 Next, `src/transcription/routes.ts` defines the health and transcription endpoints. Its middleware validates the multipart form and provides a typed audio file and optional language to the transcription route.
 
-`src/transcription/transcribe.ts` creates an isolated temporary workspace, asks `audio.ts` to prepare the upload, and sends the normalized audio to `whisper.ts`. Cleanup runs in `finally`, whether transcription succeeds or fails.
+`src/transcription/transcribe.ts` creates a temporary folder for the request, asks `audio.ts` to prepare the upload, and sends the normalized audio to `whisper.ts`. Cleanup runs in `finally`, whether transcription succeeds or fails.
 
 `src/transcription/audio.ts` owns the complete audio-preparation step: upload limits, temporary storage, FFprobe inspection, duration limits, and FFmpeg normalization.
 
