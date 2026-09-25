@@ -127,29 +127,6 @@ async function normalizeAudio(
   }
 }
 
-export async function prepareAudio(
-  file: File,
-  workspace: string,
-  options: PrepareAudioOptions,
-): Promise<PreparedAudio> {
-  validateUpload(file, options.maxUploadBytes);
-
-  const inputPath = join(workspace, "input");
-  await saveUpload(inputPath, file);
-
-  const durationSeconds = await probeAudio(inputPath, options.timeoutMs);
-  if (durationSeconds > options.maxDurationSeconds) {
-    throw new ValidationError(
-      "AUDIO_TOO_LONG",
-      `Audio duration exceeds the configured limit of ${options.maxDurationSeconds / 60} minutes.`,
-    );
-  }
-
-  const normalizedPath = join(workspace, "normalized.wav");
-  await normalizeAudio(inputPath, normalizedPath, options.timeoutMs);
-
-  return { path: normalizedPath, durationSeconds };
-}
 
 function validateUpload(file: File, maxUploadBytes: number): void {
   if (file.size === 0) {
@@ -180,3 +157,29 @@ async function saveUpload(path: string, file: File): Promise<void> {
     );
   }
 }
+
+export async function prepareAudio(
+  file: File,
+  workspace: string,
+  options: PrepareAudioOptions,
+): Promise<PreparedAudio> {
+
+  validateUpload(file, options.maxUploadBytes);
+
+  const inputPath = join(workspace, "input");
+  await saveUpload(inputPath, file);
+
+  const durationSeconds = await probeAudio(inputPath, options.timeoutMs);
+  if (durationSeconds > options.maxDurationSeconds) {
+    throw new ValidationError(
+      "AUDIO_TOO_LONG",
+      `Audio duration exceeds the configured limit of ${options.maxDurationSeconds / 60} minutes.`,
+    );
+  }
+
+  const normalizedPath = join(workspace, "normalized.wav");
+  await normalizeAudio(inputPath, normalizedPath, options.timeoutMs);
+
+  return { path: normalizedPath, durationSeconds };
+}
+
