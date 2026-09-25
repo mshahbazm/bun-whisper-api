@@ -1,4 +1,4 @@
-import { copyFile, mkdir } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { loadConfig } from "../src/config";
 import { runProcess } from "../src/process";
@@ -53,11 +53,4 @@ await runProcess(
 );
 
 await downloadModel(loadConfig().whisper.model);
-
-const samplesDirectory = resolve(root, "samples");
-await mkdir(samplesDirectory, { recursive: true });
-await copyFile(
-  resolve(whisperDirectory, "samples/jfk.wav"),
-  resolve(samplesDirectory, "jfk.wav"),
-);
 console.log("Setup complete.");

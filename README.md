@@ -22,15 +22,17 @@ bun run setup
 bun run start
 ```
 
-The setup command builds `whisper.cpp`, downloads the configured model, and adds a sample audio file.
+The setup command builds `whisper.cpp` and downloads the configured model.
 
 Upload an audio file:
 
 ```bash
 curl -X POST http://127.0.0.1:3000/v1/transcriptions \
-  -F "audio=@./samples/jfk.wav" \
+  -F "audio=@./samples/interview-sample.mp3" \
   -F "language=auto"
 ```
+
+The included three-minute [`interview sample`](./samples/README.md) can be used to test format conversion and a longer transcription job.
 
 The API returns `202 Accepted` with a job ID:
 
