@@ -10,31 +10,29 @@ interface PipelineOptions {
   readonly mediaTimeoutMs: number;
 }
 
-export class TranscriptionPipeline {
-  public constructor(private readonly options: PipelineOptions) {}
+export type TranscriptionPipeline = (
+  inputPath: string,
+  workspace: string,
+  options: TranscriptionOptions,
+) => Promise<Transcript>;
 
-  public async run(
-    inputPath: string,
-    workspace: string,
-    transcriptionOptions: TranscriptionOptions,
-  ): Promise<Transcript> {
-    const metadata = await probeAudio(inputPath, this.options.mediaTimeoutMs);
+export function createTranscriptionPipeline(
+  options: PipelineOptions,
+): TranscriptionPipeline {
+  return async (inputPath, workspace, transcriptionOptions) => {
+    const metadata = await probeAudio(inputPath, options.mediaTimeoutMs);
 
-    if (metadata.durationSeconds > this.options.maxAudioDurationSeconds) {
+    if (metadata.durationSeconds > options.maxAudioDurationSeconds) {
       throw new ValidationError(
         "AUDIO_TOO_LONG",
-        `Audio duration exceeds the configured limit of ${this.options.maxAudioDurationSeconds / 60} minutes.`,
+        `Audio duration exceeds the configured limit of ${options.maxAudioDurationSeconds / 60} minutes.`,
       );
     }
 
     const normalizedPath = join(workspace, "normalized.wav");
-    await normalizeAudio(
-      inputPath,
-      normalizedPath,
-      this.options.mediaTimeoutMs,
-    );
+    await normalizeAudio(inputPath, normalizedPath, options.mediaTimeoutMs);
 
-    const output = await this.options.transcriber.transcribe(
+    const output = await options.transcriber(
       normalizedPath,
       workspace,
       transcriptionOptions,
@@ -46,5 +44,5 @@ export class TranscriptionPipeline {
       durationSeconds: metadata.durationSeconds,
       segments: [...output.segments],
     };
-  }
+  };
 }

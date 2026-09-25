@@ -10,13 +10,11 @@ export interface TranscriptionOutput {
   readonly segments: readonly Segment[];
 }
 
-export interface Transcriber {
-  transcribe(
-    audioPath: string,
-    outputDirectory: string,
-    options: TranscriptionOptions,
-  ): Promise<TranscriptionOutput>;
-}
+export type Transcriber = (
+  audioPath: string,
+  outputDirectory: string,
+  options: TranscriptionOptions,
+) => Promise<TranscriptionOutput>;
 
 const WhisperOutputSchema = z.object({
   result: z.object({ language: z.string().optional() }).optional(),
@@ -64,34 +62,30 @@ interface WhisperCppOptions {
   readonly timeoutMs: number;
 }
 
-export class WhisperCppTranscriber implements Transcriber {
-  public constructor(private readonly config: WhisperCppOptions) {}
-
-  public async transcribe(
-    audioPath: string,
-    outputDirectory: string,
-    options: TranscriptionOptions,
-  ): Promise<TranscriptionOutput> {
+export function createWhisperCppTranscriber(
+  config: WhisperCppOptions,
+): Transcriber {
+  return async (audioPath, outputDirectory, options) => {
     const outputBase = join(outputDirectory, "whisper-result");
 
     try {
       await runProcess(
-        this.config.cliPath,
+        config.cliPath,
         [
           "--model",
-          this.config.modelPath,
+          config.modelPath,
           "--file",
           audioPath,
           "--language",
           options.language,
           "--threads",
-          String(this.config.threads),
+          String(config.threads),
           "--output-json-full",
           "--output-file",
           outputBase,
           "--no-prints",
         ],
-        { timeoutMs: this.config.timeoutMs },
+        { timeoutMs: config.timeoutMs },
       );
     } catch (error) {
       throw new DependencyError("Audio transcription failed.", {
@@ -114,5 +108,5 @@ export class WhisperCppTranscriber implements Transcriber {
         cause: error,
       });
     }
-  }
+  };
 }

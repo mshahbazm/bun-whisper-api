@@ -3,30 +3,26 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRequestHandler } from "../src/transcription/api";
-import { JobQueue, JobStore } from "../src/transcription/jobs";
-import { TranscriptionService } from "../src/transcription/service";
+import { createJobQueue, createJobStore } from "../src/transcription/jobs";
+import { createTranscriptionService } from "../src/transcription/service";
 import { createSilentWav } from "./helpers";
 
 describe("transcription API", () => {
   test("accepts an audio file and exposes the completed job", async () => {
     const root = await mkdtemp(join(tmpdir(), "stt-api-test-"));
-    const jobs = new TranscriptionService({
-      store: new JobStore(60_000),
-      queue: new JobQueue(1),
+    const jobs = createTranscriptionService({
+      store: createJobStore(60_000),
+      queue: createJobQueue(1),
       workDirectory: root,
       maxUploadBytes: 1024 * 1024,
       defaultLanguage: "auto",
-      pipeline: {
-        async run() {
-          return {
-            text: "Hello.",
-            language: "en",
-            durationSeconds: 1,
-            segments: [
-              { id: 0, startSeconds: 0, endSeconds: 1, text: "Hello." },
-            ],
-          };
-        },
+      async pipeline() {
+        return {
+          text: "Hello.",
+          language: "en",
+          durationSeconds: 1,
+          segments: [{ id: 0, startSeconds: 0, endSeconds: 1, text: "Hello." }],
+        };
       },
     });
     const handle = createRequestHandler(jobs);
@@ -66,16 +62,14 @@ describe("transcription API", () => {
 
   test("rejects requests without an audio file", async () => {
     const root = await mkdtemp(join(tmpdir(), "stt-api-test-"));
-    const jobs = new TranscriptionService({
-      store: new JobStore(60_000),
-      queue: new JobQueue(1),
+    const jobs = createTranscriptionService({
+      store: createJobStore(60_000),
+      queue: createJobQueue(1),
       workDirectory: root,
       maxUploadBytes: 1024,
       defaultLanguage: "auto",
-      pipeline: {
-        async run() {
-          throw new Error("unreachable");
-        },
+      async pipeline() {
+        throw new Error("unreachable");
       },
     });
     const form = new FormData();

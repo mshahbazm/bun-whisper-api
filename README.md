@@ -1,6 +1,6 @@
 # Speech-to-text API
 
-An asynchronous transcription API built with Bun, TypeScript, FFmpeg, and `whisper.cpp`.
+An asynchronous transcription API built with Bun, TypeScript, FFmpeg, `fastq`, and `whisper.cpp`.
 
 The API accepts an audio file, processes it in the background, and returns the transcription with timestamps for each segment.
 
@@ -123,6 +123,8 @@ FFprobe first checks that the uploaded file contains valid audio and reads its d
 
 Transcription time depends on the recording length, model, and available hardware. The upload endpoint therefore creates a background job and returns immediately instead of keeping the HTTP request open. Clients poll the job endpoint for the result.
 
+`fastq` provides the in-memory queue and limits how many transcription jobs run at once. This keeps the assessment implementation small while avoiding a custom queue implementation.
+
 A signed webhook callback would be a useful production extension, but it would also need retry handling, request signing, duplicate-delivery protection, and SSRF protection.
 
 ### Long audio
@@ -133,9 +135,9 @@ If the selected engine did not support long audio, I would first split recording
 
 ### Concurrent uploads
 
-Each upload gets an isolated temporary directory, so concurrent jobs cannot overwrite each other's files. A bounded queue controls how many transcriptions run at once. This provides backpressure and prevents several model processes from exhausting the machine's memory or compute resources.
+Each upload gets an isolated temporary directory, so concurrent jobs cannot overwrite each other's files. The `fastq` concurrency setting controls how many transcriptions run at once. This provides backpressure and prevents several model processes from exhausting the machine's memory or compute resources.
 
-For a production deployment, clients would upload large files directly to object storage using signed URLs. The API would then enqueue a job containing the object key, and durable workers would consume jobs according to the available CPU or GPU capacity.
+For a production deployment, clients would upload large files directly to object storage using signed URLs. The API would then put the object key on a durable Redis-backed queue such as BullMQ, and separate workers would consume jobs according to the available CPU or GPU capacity.
 
 ### Storage and cleanup
 

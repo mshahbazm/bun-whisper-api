@@ -1,25 +1,25 @@
 import { loadConfig } from "./config";
 import { createRequestHandler } from "./transcription/api";
-import { JobQueue, JobStore } from "./transcription/jobs";
-import { TranscriptionPipeline } from "./transcription/pipeline";
-import { TranscriptionService } from "./transcription/service";
-import { WhisperCppTranscriber } from "./transcription/whisper";
+import { createJobQueue, createJobStore } from "./transcription/jobs";
+import { createTranscriptionPipeline } from "./transcription/pipeline";
+import { createTranscriptionService } from "./transcription/service";
+import { createWhisperCppTranscriber } from "./transcription/whisper";
 
 const config = loadConfig();
-const transcriber = new WhisperCppTranscriber({
+const transcriber = createWhisperCppTranscriber({
   cliPath: config.whisper.cliPath,
   modelPath: config.whisper.modelPath,
   threads: config.whisper.threads,
   timeoutMs: config.jobTimeoutMs,
 });
-const pipeline = new TranscriptionPipeline({
+const pipeline = createTranscriptionPipeline({
   transcriber,
   maxAudioDurationSeconds: config.maxAudioDurationSeconds,
   mediaTimeoutMs: config.jobTimeoutMs,
 });
-const store = new JobStore(config.jobTtlMs);
-const queue = new JobQueue(config.transcriptionConcurrency);
-const jobs = new TranscriptionService({
+const store = createJobStore(config.jobTtlMs);
+const queue = createJobQueue(config.transcriptionConcurrency);
+const jobs = createTranscriptionService({
   store,
   queue,
   pipeline,

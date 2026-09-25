@@ -2,68 +2,51 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 import { AppError, toPublicError, ValidationError } from "../errors";
 import type { JobQueue, JobStore } from "./jobs";
-import type {
-  Transcript,
-  TranscriptionJob,
-  TranscriptionOptions,
-} from "./types";
+import type { TranscriptionPipeline } from "./pipeline";
+import type { TranscriptionJob } from "./types";
 import { TranscriptionOptionsSchema } from "./types";
 
 interface ServiceOptions {
   readonly store: JobStore;
   readonly queue: JobQueue;
-  readonly pipeline: {
-    run(
-      inputPath: string,
-      workspace: string,
-      options: TranscriptionOptions,
-    ): Promise<Transcript>;
-  };
+  readonly pipeline: TranscriptionPipeline;
   readonly workDirectory: string;
   readonly maxUploadBytes: number;
   readonly defaultLanguage: string;
 }
 
-export class TranscriptionService {
-  public constructor(private readonly options: ServiceOptions) {}
+export interface TranscriptionService {
+  submit(file: File, language?: string): Promise<TranscriptionJob>;
+  get(id: string): TranscriptionJob;
+}
 
-  public async submit(
+export function createTranscriptionService(
+  options: ServiceOptions,
+): TranscriptionService {
+  async function submit(
     file: File,
     language?: string,
   ): Promise<TranscriptionJob> {
-    if (file.size === 0) {
-      throw new ValidationError(
-        "EMPTY_FILE",
-        "The provided audio file is empty.",
-      );
-    }
+    validateFile(file, options.maxUploadBytes);
 
-    if (file.size > this.options.maxUploadBytes) {
-      throw new AppError(
-        "UPLOAD_TOO_LARGE",
-        "The provided audio file exceeds the configured size limit.",
-        413,
-      );
-    }
-
-    const parsedOptions = TranscriptionOptionsSchema.safeParse({
-      language: language ?? this.options.defaultLanguage,
+    const transcriptionOptions = TranscriptionOptionsSchema.safeParse({
+      language: language ?? options.defaultLanguage,
     });
-    if (!parsedOptions.success) {
+    if (!transcriptionOptions.success) {
       throw new ValidationError(
         "INVALID_LANGUAGE",
         'Language must be "auto" or a supported language code.',
-        { cause: parsedOptions.error },
+        { cause: transcriptionOptions.error },
       );
     }
 
-    const workspace = await createWorkspace(this.options.workDirectory);
+    const workspace = await createWorkspace(options.workDirectory);
     const inputPath = join(workspace, "input");
 
     try {
       await Bun.write(inputPath, file);
     } catch (error) {
-      await removeWorkspace(this.options.workDirectory, workspace);
+      await removeWorkspace(options.workDirectory, workspace);
       throw new AppError(
         "UPLOAD_WRITE_FAILED",
         "The provided audio file could not be stored temporarily.",
@@ -72,36 +55,59 @@ export class TranscriptionService {
       );
     }
 
-    const job = this.options.store.create();
-    this.options.queue.enqueue(async () => {
-      this.options.store.markProcessing(job.id);
-      try {
-        const result = await this.options.pipeline.run(
-          inputPath,
-          workspace,
-          parsedOptions.data,
-        );
-        this.options.store.markCompleted(job.id, result);
-      } catch (error) {
-        const publicError = toPublicError(error);
-        this.options.store.markFailed(job.id, {
-          code: publicError.code,
-          message: publicError.message,
-        });
-      } finally {
+    const job = options.store.create();
+    void options.queue
+      .push(async () => {
+        options.store.markProcessing(job.id);
         try {
-          await removeWorkspace(this.options.workDirectory, workspace);
+          const result = await options.pipeline(
+            inputPath,
+            workspace,
+            transcriptionOptions.data,
+          );
+          options.store.markCompleted(job.id, result);
         } catch (error) {
-          console.error("Failed to clean up transcription workspace", error);
+          const publicError = toPublicError(error);
+          options.store.markFailed(job.id, {
+            code: publicError.code,
+            message: publicError.message,
+          });
+        } finally {
+          await removeWorkspace(options.workDirectory, workspace).catch(
+            (error) => {
+              console.error(
+                "Failed to clean up transcription workspace",
+                error,
+              );
+            },
+          );
         }
-      }
-    });
+      })
+      .catch((error) => console.error("Queued transcription failed", error));
 
     return job;
   }
 
-  public get(id: string): TranscriptionJob {
-    return this.options.store.get(id);
+  return {
+    submit,
+    get: options.store.get,
+  };
+}
+
+function validateFile(file: File, maxUploadBytes: number): void {
+  if (file.size === 0) {
+    throw new ValidationError(
+      "EMPTY_FILE",
+      "The provided audio file is empty.",
+    );
+  }
+
+  if (file.size > maxUploadBytes) {
+    throw new AppError(
+      "UPLOAD_TOO_LARGE",
+      "The provided audio file exceeds the configured size limit.",
+      413,
+    );
   }
 }
 
