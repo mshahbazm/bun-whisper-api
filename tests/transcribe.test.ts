@@ -1,17 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createTranscriptionPipeline } from "../src/transcription/pipeline";
+import { transcribeAudio } from "../src/transcription/transcribe";
 import type { Transcriber } from "../src/transcription/whisper";
 import { createSilentWav } from "./helpers";
 
-describe("transcription pipeline", () => {
-  test("normalizes audio and returns the stable transcript contract", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "stt-pipeline-test-"));
-    const inputPath = join(workspace, "input.wav");
-    await Bun.write(inputPath, createSilentWav());
-
+describe("transcribeAudio", () => {
+  test("normalizes audio, transcribes it, and removes temporary files", async () => {
+    const workDirectory = await mkdtemp(join(tmpdir(), "stt-test-"));
     const transcriber: Transcriber = async (audioPath) => {
       expect(await Bun.file(audioPath).exists()).toBe(true);
       return {
@@ -29,19 +26,20 @@ describe("transcription pipeline", () => {
     };
 
     try {
-      const pipeline = createTranscriptionPipeline({
+      const result = await transcribeAudio(createSilentWav(), "auto", {
         transcriber,
+        workDirectory,
+        maxUploadBytes: 1024 * 1024,
         maxAudioDurationSeconds: 60,
         mediaTimeoutMs: 10_000,
-      });
-      const result = await pipeline(inputPath, workspace, {
-        language: "auto",
+        defaultLanguage: "auto",
       });
 
       expect(result.text).toBe("Test transcript.");
       expect(result.durationSeconds).toBeCloseTo(1, 2);
+      expect(await readdir(workDirectory)).toEqual([]);
     } finally {
-      await rm(workspace, { recursive: true, force: true });
+      await rm(workDirectory, { recursive: true, force: true });
     }
   });
 });

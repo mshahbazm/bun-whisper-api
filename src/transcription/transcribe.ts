@@ -1,14 +1,17 @@
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 import { AppError, ValidationError } from "../errors";
-import type { TranscriptionPipeline } from "./pipeline";
+import { normalizeAudio, probeAudio } from "./audio";
 import type { Transcript } from "./types";
 import { TranscriptionOptionsSchema } from "./types";
+import type { Transcriber } from "./whisper";
 
 interface TranscribeAudioOptions {
-  readonly pipeline: TranscriptionPipeline;
+  readonly transcriber: Transcriber;
   readonly workDirectory: string;
   readonly maxUploadBytes: number;
+  readonly maxAudioDurationSeconds: number;
+  readonly mediaTimeoutMs: number;
   readonly defaultLanguage: string;
 }
 
@@ -35,11 +38,28 @@ export async function transcribeAudio(
 
   try {
     await saveUpload(inputPath, file);
-    return await options.pipeline(
-      inputPath,
+    const durationSeconds = await probeAudio(inputPath, options.mediaTimeoutMs);
+
+    if (durationSeconds > options.maxAudioDurationSeconds) {
+      throw new ValidationError(
+        "AUDIO_TOO_LONG",
+        `Audio duration exceeds the configured limit of ${options.maxAudioDurationSeconds / 60} minutes.`,
+      );
+    }
+
+    const normalizedPath = join(workspace, "normalized.wav");
+    await normalizeAudio(inputPath, normalizedPath, options.mediaTimeoutMs);
+    const output = await options.transcriber(
+      normalizedPath,
       workspace,
       transcriptionOptions.data,
     );
+
+    return {
+      ...output,
+      segments: [...output.segments],
+      durationSeconds,
+    };
   } finally {
     await removeWorkspace(options.workDirectory, workspace).catch((error) => {
       console.error("Failed to clean up transcription workspace", error);

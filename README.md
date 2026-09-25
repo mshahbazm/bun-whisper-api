@@ -92,8 +92,7 @@ src/
 ├── process.ts                 Runs external commands safely
 └── transcription/
     ├── routes.ts              Hono routes and multipart request handling
-    ├── transcribe.ts          Handles the uploaded file and cleanup
-    ├── pipeline.ts            Runs the audio-to-transcript steps
+    ├── transcribe.ts          Runs the complete transcription flow
     ├── audio.ts               FFprobe validation and FFmpeg conversion
     ├── whisper.ts             Runs whisper.cpp and parses its JSON
     └── types.ts               Transcript and segment types
@@ -104,13 +103,11 @@ scripts/
 
 ## Code walkthrough
 
-Start with `src/server.ts`. It loads the configuration, creates the whisper.cpp transcriber and processing pipeline, connects `transcribeAudio` to the Hono application, and starts the server.
+Start with `src/server.ts`. It loads the configuration, connects whisper.cpp and `transcribeAudio` to the Hono application, and starts the server.
 
 Next, `src/transcription/routes.ts` defines the health and transcription endpoints. The transcription route reads the multipart form, validates the `audio` file and optional language, and calls `transcribeAudio`.
 
-`src/transcription/transcribe.ts` checks the file size, creates an isolated temporary workspace, saves the uploaded file, and calls the pipeline. Cleanup runs in `finally`, whether transcription succeeds or fails.
-
-`src/transcription/pipeline.ts` connects the three processing steps. `audio.ts` validates and normalizes the input, then `whisper.ts` runs whisper.cpp and turns its output into the API response.
+`src/transcription/transcribe.ts` checks the file size, creates an isolated temporary workspace, saves the uploaded file, validates and normalizes it with the functions from `audio.ts`, and sends it to the function in `whisper.ts`. Cleanup runs in `finally`, whether transcription succeeds or fails.
 
 ## Engineering decisions
 
@@ -120,7 +117,7 @@ FFmpeg supports common inputs such as MP3, WAV, M4A, FLAC, and OGG. Every input 
 
 ### Long audio
 
-whisper.cpp processes long recordings through internal audio windows while preserving timestamps, so the pipeline passes it the complete normalized recording.
+whisper.cpp processes long recordings through internal audio windows while preserving timestamps, so `transcribeAudio` passes it the complete normalized recording.
 
 If the selected transcription engine did not support long recordings, I would first split the audio around natural pauses. When no safe pause was available, I would use overlapping chunks and remove duplicated text while joining their results.
 
@@ -132,10 +129,14 @@ The Bun server allows the request to remain open while transcription runs, while
 
 The multilingual `base` model is the default because it gives a reasonable balance between size, speed, and accuracy. Models ending in `.en` are English-only; models without that suffix are multilingual.
 
-To use another supported model:
+To use another supported model, change `WHISPER_MODEL` in `.env` and run setup again:
+
+```dotenv
+WHISPER_MODEL=small
+```
 
 ```bash
-bun run setup small
+bun run setup
 ```
 
 ### Runtime validation
@@ -197,7 +198,7 @@ Human-readable units are used in `.env`; the application converts them into byte
 bun run check
 ```
 
-This runs strict TypeScript checks, Biome, and the test suite. Tests cover the synchronous API response, environment configuration, audio pipeline, and whisper.cpp JSON parsing. Unit tests use a fake transcriber and do not download or run a model.
+This runs strict TypeScript checks, Biome, and the test suite. Tests cover the synchronous API response, environment configuration, audio processing, cleanup, and whisper.cpp JSON parsing. Unit tests use a fake transcriber and do not download or run a model.
 
 ## Local behavior
 

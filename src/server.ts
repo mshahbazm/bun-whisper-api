@@ -1,29 +1,26 @@
 import { loadConfig } from "./config";
-import { createTranscriptionPipeline } from "./transcription/pipeline";
 import { createApp } from "./transcription/routes";
 import { transcribeAudio } from "./transcription/transcribe";
-import { createWhisperCppTranscriber } from "./transcription/whisper";
+import type { Transcriber } from "./transcription/whisper";
+import { transcribeWithWhisper } from "./transcription/whisper";
 
 const config = loadConfig();
 
-const transcriber = createWhisperCppTranscriber({
-  cliPath: config.whisper.cliPath,
-  modelPath: config.whisper.modelPath,
-  threads: config.whisper.threads,
-  timeoutMs: config.processTimeoutMs,
-});
-
-const pipeline = createTranscriptionPipeline({
-  transcriber,
-  maxAudioDurationSeconds: config.maxAudioDurationSeconds,
-  mediaTimeoutMs: config.processTimeoutMs,
-});
+const transcriber: Transcriber = (audioPath, outputDirectory, options) =>
+  transcribeWithWhisper(audioPath, outputDirectory, options, {
+    cliPath: config.whisper.cliPath,
+    modelPath: config.whisper.modelPath,
+    threads: config.whisper.threads,
+    timeoutMs: config.processTimeoutMs,
+  });
 
 const app = createApp((file, language) =>
   transcribeAudio(file, language, {
-    pipeline,
+    transcriber,
     workDirectory: config.workDirectory,
     maxUploadBytes: config.maxUploadBytes,
+    maxAudioDurationSeconds: config.maxAudioDurationSeconds,
+    mediaTimeoutMs: config.processTimeoutMs,
     defaultLanguage: config.whisper.language,
   }),
 );

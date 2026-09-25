@@ -32,7 +32,7 @@ if (!(await Bun.file(resolve(whisperDirectory, "CMakeLists.txt")).exists())) {
       "https://github.com/ggml-org/whisper.cpp.git",
       whisperDirectory,
     ],
-    { timeoutMs: 10 * 60 * 1000 },
+    10 * 60 * 1000,
   );
 }
 
@@ -40,7 +40,7 @@ console.log("Building whisper.cpp...");
 await runProcess(
   "cmake",
   ["-S", whisperDirectory, "-B", resolve(whisperDirectory, "build")],
-  { timeoutMs: 10 * 60 * 1000 },
+  10 * 60 * 1000,
 );
 await runProcess(
   "cmake",
@@ -51,7 +51,7 @@ await runProcess(
     "Release",
     "--parallel",
   ],
-  { timeoutMs: 30 * 60 * 1000 },
+  30 * 60 * 1000,
 );
 
 const modelPath = resolve(modelDirectory, `ggml-${model}.bin`);
@@ -65,7 +65,7 @@ if (!(await Bun.file(modelPath).exists())) {
       model,
       modelDirectory,
     ],
-    { timeoutMs: 60 * 60 * 1000 },
+    60 * 60 * 1000,
   );
 }
 

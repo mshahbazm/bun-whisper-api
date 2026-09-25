@@ -6,9 +6,6 @@ const ProbeOutputSchema = z.object({
   streams: z.array(
     z.object({
       codec_type: z.string().optional(),
-      codec_name: z.string().optional(),
-      sample_rate: z.string().optional(),
-      channels: z.number().optional(),
     }),
   ),
   format: z.object({
@@ -16,17 +13,10 @@ const ProbeOutputSchema = z.object({
   }),
 });
 
-export interface AudioMetadata {
-  readonly durationSeconds: number;
-  readonly codec: string | null;
-  readonly sampleRate: number | null;
-  readonly channels: number | null;
-}
-
 export async function probeAudio(
   inputPath: string,
   timeoutMs: number,
-): Promise<AudioMetadata> {
+): Promise<number> {
   let output: string;
 
   try {
@@ -36,12 +26,12 @@ export async function probeAudio(
         "-v",
         "error",
         "-show_entries",
-        "format=duration:stream=codec_type,codec_name,sample_rate,channels",
+        "format=duration:stream=codec_type",
         "-of",
         "json",
         inputPath,
       ],
-      { timeoutMs },
+      timeoutMs,
     ));
   } catch (error) {
     throw new ValidationError(
@@ -87,13 +77,7 @@ export async function probeAudio(
     );
   }
 
-  const sampleRate = Number(audioStream.sample_rate);
-  return {
-    durationSeconds,
-    codec: audioStream.codec_name ?? null,
-    sampleRate: Number.isFinite(sampleRate) ? sampleRate : null,
-    channels: audioStream.channels ?? null,
-  };
+  return durationSeconds;
 }
 
 export async function normalizeAudio(
@@ -120,7 +104,7 @@ export async function normalizeAudio(
         "pcm_s16le",
         outputPath,
       ],
-      { timeoutMs },
+      timeoutMs,
     );
   } catch (error) {
     throw new ValidationError(

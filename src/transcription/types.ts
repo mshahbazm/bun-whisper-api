@@ -1,22 +1,18 @@
 import { z } from "zod";
 
-export const SegmentSchema = z.object({
-  id: z.number().int().nonnegative(),
-  startSeconds: z.number().nonnegative(),
-  endSeconds: z.number().nonnegative(),
-  text: z.string(),
-});
+export interface Segment {
+  readonly id: number;
+  readonly startSeconds: number;
+  readonly endSeconds: number;
+  readonly text: string;
+}
 
-export type Segment = z.infer<typeof SegmentSchema>;
-
-export const TranscriptSchema = z.object({
-  text: z.string(),
-  language: z.string().nullable(),
-  durationSeconds: z.number().nonnegative(),
-  segments: z.array(SegmentSchema),
-});
-
-export type Transcript = z.infer<typeof TranscriptSchema>;
+export interface Transcript {
+  readonly text: string;
+  readonly language: string | null;
+  readonly durationSeconds: number;
+  readonly segments: readonly Segment[];
+}
 
 export const TranscriptionOptionsSchema = z.object({
   language: z.string().regex(/^(auto|[a-z]{2,3})$/),

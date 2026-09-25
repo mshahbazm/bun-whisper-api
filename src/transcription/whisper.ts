@@ -62,51 +62,52 @@ interface WhisperCppOptions {
   readonly timeoutMs: number;
 }
 
-export function createWhisperCppTranscriber(
+export async function transcribeWithWhisper(
+  audioPath: string,
+  outputDirectory: string,
+  options: TranscriptionOptions,
   config: WhisperCppOptions,
-): Transcriber {
-  return async (audioPath, outputDirectory, options) => {
-    const outputBase = join(outputDirectory, "whisper-result");
+): Promise<TranscriptionOutput> {
+  const outputBase = join(outputDirectory, "whisper-result");
 
-    try {
-      await runProcess(
-        config.cliPath,
-        [
-          "--model",
-          config.modelPath,
-          "--file",
-          audioPath,
-          "--language",
-          options.language,
-          "--threads",
-          String(config.threads),
-          "--output-json-full",
-          "--output-file",
-          outputBase,
-          "--no-prints",
-        ],
-        { timeoutMs: config.timeoutMs },
-      );
-    } catch (error) {
-      throw new DependencyError("Audio transcription failed.", {
-        cause: error,
-      });
-    }
+  try {
+    await runProcess(
+      config.cliPath,
+      [
+        "--model",
+        config.modelPath,
+        "--file",
+        audioPath,
+        "--language",
+        options.language,
+        "--threads",
+        String(config.threads),
+        "--output-json-full",
+        "--output-file",
+        outputBase,
+        "--no-prints",
+      ],
+      config.timeoutMs,
+    );
+  } catch (error) {
+    throw new DependencyError("Audio transcription failed.", {
+      cause: error,
+    });
+  }
 
-    const outputFile = Bun.file(`${outputBase}.json`);
-    if (!(await outputFile.exists())) {
-      throw new DependencyError(
-        "whisper.cpp completed without creating its JSON output.",
-      );
-    }
+  const outputFile = Bun.file(`${outputBase}.json`);
+  if (!(await outputFile.exists())) {
+    throw new DependencyError(
+      "whisper.cpp completed without creating its JSON output.",
+    );
+  }
 
-    try {
-      return parseWhisperOutput(await outputFile.json());
-    } catch (error) {
-      if (error instanceof DependencyError) throw error;
-      throw new DependencyError("Could not read whisper.cpp output.", {
-        cause: error,
-      });
-    }
-  };
+  try {
+    return parseWhisperOutput(await outputFile.json());
+  } catch (error) {
+    if (error instanceof DependencyError) throw error;
+    throw new DependencyError("Could not read whisper.cpp output.", {
+      cause: error,
+    });
+  }
 }
