@@ -10,9 +10,10 @@ import { createSilentWav } from "./helpers";
 describe("transcription API", () => {
   test("accepts an audio file and exposes the completed job", async () => {
     const root = await mkdtemp(join(tmpdir(), "stt-api-test-"));
+    const queue = createJobQueue(1);
     const jobs = createTranscriptionService({
       store: createJobStore(60_000),
-      queue: createJobQueue(1),
+      queue,
       workDirectory: root,
       maxUploadBytes: 1024 * 1024,
       defaultLanguage: "auto",
@@ -43,15 +44,14 @@ describe("transcription API", () => {
       };
       expect(created.status).toBe("queued");
 
-      let completed: { status: string; result?: { text: string } } | undefined;
-      for (let attempt = 0; attempt < 20; attempt += 1) {
-        const response = await handle(
-          new Request(`http://localhost/v1/transcriptions/${created.id}`),
-        );
-        completed = (await response.json()) as typeof completed;
-        if (completed?.status === "completed") break;
-        await Bun.sleep(5);
-      }
+      await queue.drained();
+      const response = await handle(
+        new Request(`http://localhost/v1/transcriptions/${created.id}`),
+      );
+      const completed = (await response.json()) as {
+        status: string;
+        result?: { text: string };
+      };
 
       expect(completed?.status).toBe("completed");
       expect(completed?.result?.text).toBe("Hello.");

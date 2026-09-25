@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "bun --watch src/server.ts",
     "start": "bun src/server.ts",
-    "setup": "bun scripts/setup-whisper.ts",
-    "model:download": "bun scripts/download-model.ts",
+    "setup": "bun scripts/setup.ts",
     "test": "bun test --cwd ./tests",
     "typecheck": "bunx tsc --noEmit",
     "lint": "bunx biome check .",

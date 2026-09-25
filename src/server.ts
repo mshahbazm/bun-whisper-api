@@ -19,6 +19,7 @@ const pipeline = createTranscriptionPipeline({
 });
 const store = createJobStore(config.jobTtlMs);
 const queue = createJobQueue(config.transcriptionConcurrency);
+
 const jobs = createTranscriptionService({
   store,
   queue,

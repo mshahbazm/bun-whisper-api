@@ -169,10 +169,10 @@ WHISPER_LANGUAGE=auto
 WHISPER_THREADS=4
 ```
 
-Download another model before selecting it:
+To set up a different model, pass its name to the same setup command:
 
 ```bash
-bun run model:download small
+bun run setup small
 ```
 
 ## Current limitations

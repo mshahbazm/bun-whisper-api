@@ -1,13 +1,15 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
-import { loadConfig } from "../src/config";
+import { loadConfig, WhisperModelSchema } from "../src/config";
 import { runProcess } from "../src/process";
-import { downloadModel } from "./download-model";
 
 const whisperVersion = "v1.9.4";
 const root = process.cwd();
-const vendorDirectory = resolve(root, "vendor");
-const whisperDirectory = resolve(vendorDirectory, "whisper.cpp");
+const whisperDirectory = resolve(root, "vendor/whisper.cpp");
+const modelDirectory = resolve(root, process.env.WHISPER_MODEL_DIR ?? "models");
+const model = WhisperModelSchema.parse(
+  process.argv[2] ?? loadConfig().whisper.model,
+);
 
 for (const executable of ["git", "cmake", "ffmpeg", "ffprobe"]) {
   if (!Bun.which(executable)) {
@@ -15,7 +17,7 @@ for (const executable of ["git", "cmake", "ffmpeg", "ffprobe"]) {
   }
 }
 
-await mkdir(vendorDirectory, { recursive: true });
+await mkdir(resolve(root, "vendor"), { recursive: true });
 
 if (!(await Bun.file(resolve(whisperDirectory, "CMakeLists.txt")).exists())) {
   console.log(`Installing whisper.cpp ${whisperVersion}...`);
@@ -52,5 +54,19 @@ await runProcess(
   { timeoutMs: 30 * 60 * 1000 },
 );
 
-await downloadModel(loadConfig().whisper.model);
-console.log("Setup complete.");
+const modelPath = resolve(modelDirectory, `ggml-${model}.bin`);
+if (!(await Bun.file(modelPath).exists())) {
+  await mkdir(modelDirectory, { recursive: true });
+  console.log(`Downloading Whisper model "${model}"...`);
+  await runProcess(
+    "bash",
+    [
+      resolve(whisperDirectory, "models/download-ggml-model.sh"),
+      model,
+      modelDirectory,
+    ],
+    { timeoutMs: 60 * 60 * 1000 },
+  );
+}
+
+console.log(`Setup complete. Model: ${modelPath}`);
