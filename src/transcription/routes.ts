@@ -41,12 +41,8 @@ export function createApp(transcriptions: TranscriptionService) {
       );
     }
 
-    return context.json(await transcriptions.submit(audio, language), 202);
+    return context.json(await transcriptions.transcribe(audio, language));
   });
-
-  app.get("/v1/transcriptions/:id", (context) =>
-    context.json(transcriptions.get(context.req.param("id"))),
-  );
 
   app.notFound((context) =>
     context.json(

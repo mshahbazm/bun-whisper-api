@@ -1,14 +1,11 @@
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
-import { AppError, toPublicError, ValidationError } from "../errors";
-import type { JobQueue, JobStore } from "./jobs";
+import { AppError, ValidationError } from "../errors";
 import type { TranscriptionPipeline } from "./pipeline";
-import type { TranscriptionJob } from "./types";
+import type { Transcript } from "./types";
 import { TranscriptionOptionsSchema } from "./types";
 
 interface ServiceOptions {
-  readonly store: JobStore;
-  readonly queue: JobQueue;
   readonly pipeline: TranscriptionPipeline;
   readonly workDirectory: string;
   readonly maxUploadBytes: number;
@@ -16,17 +13,16 @@ interface ServiceOptions {
 }
 
 export interface TranscriptionService {
-  submit(file: File, language?: string): Promise<TranscriptionJob>;
-  get(id: string): TranscriptionJob;
+  transcribe(file: File, language?: string): Promise<Transcript>;
 }
 
 export function createTranscriptionService(
   options: ServiceOptions,
 ): TranscriptionService {
-  async function submit(
+  async function transcribe(
     file: File,
     language?: string,
-  ): Promise<TranscriptionJob> {
+  ): Promise<Transcript> {
     validateFile(file, options.maxUploadBytes);
 
     const transcriptionOptions = TranscriptionOptionsSchema.safeParse({
@@ -44,54 +40,20 @@ export function createTranscriptionService(
     const inputPath = join(workspace, "input");
 
     try {
-      await Bun.write(inputPath, file);
-    } catch (error) {
-      await removeWorkspace(options.workDirectory, workspace);
-      throw new AppError(
-        "UPLOAD_WRITE_FAILED",
-        "The provided audio file could not be stored temporarily.",
-        500,
-        { cause: error },
+      await saveUpload(inputPath, file);
+      return await options.pipeline(
+        inputPath,
+        workspace,
+        transcriptionOptions.data,
       );
+    } finally {
+      await removeWorkspace(options.workDirectory, workspace).catch((error) => {
+        console.error("Failed to clean up transcription workspace", error);
+      });
     }
-
-    const job = options.store.create();
-    void options.queue
-      .push(async () => {
-        options.store.markProcessing(job.id);
-        try {
-          const result = await options.pipeline(
-            inputPath,
-            workspace,
-            transcriptionOptions.data,
-          );
-          options.store.markCompleted(job.id, result);
-        } catch (error) {
-          const publicError = toPublicError(error);
-          options.store.markFailed(job.id, {
-            code: publicError.code,
-            message: publicError.message,
-          });
-        } finally {
-          await removeWorkspace(options.workDirectory, workspace).catch(
-            (error) => {
-              console.error(
-                "Failed to clean up transcription workspace",
-                error,
-              );
-            },
-          );
-        }
-      })
-      .catch((error) => console.error("Queued transcription failed", error));
-
-    return job;
   }
 
-  return {
-    submit,
-    get: options.store.get,
-  };
+  return { transcribe };
 }
 
 function validateFile(file: File, maxUploadBytes: number): void {
@@ -111,9 +73,22 @@ function validateFile(file: File, maxUploadBytes: number): void {
   }
 }
 
+async function saveUpload(path: string, file: File): Promise<void> {
+  try {
+    await Bun.write(path, file);
+  } catch (error) {
+    throw new AppError(
+      "UPLOAD_WRITE_FAILED",
+      "The provided audio file could not be stored temporarily.",
+      500,
+      { cause: error },
+    );
+  }
+}
+
 async function createWorkspace(root: string): Promise<string> {
   await mkdir(root, { recursive: true });
-  return mkdtemp(join(root, "job-"));
+  return mkdtemp(join(root, "request-"));
 }
 
 async function removeWorkspace(root: string, directory: string): Promise<void> {
@@ -121,7 +96,9 @@ async function removeWorkspace(root: string, directory: string): Promise<void> {
   const resolvedDirectory = resolve(directory);
 
   if (!resolvedDirectory.startsWith(resolvedRoot)) {
-    throw new Error("Refusing to remove a directory outside the job root.");
+    throw new Error(
+      "Refusing to remove a directory outside the transcription root.",
+    );
   }
 
   await rm(resolvedDirectory, { recursive: true, force: true });

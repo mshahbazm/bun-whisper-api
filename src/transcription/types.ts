@@ -23,36 +23,3 @@ export const TranscriptionOptionsSchema = z.object({
 });
 
 export type TranscriptionOptions = z.infer<typeof TranscriptionOptionsSchema>;
-
-interface JobBase {
-  readonly id: string;
-  readonly createdAt: string;
-  readonly updatedAt: string;
-}
-
-export interface QueuedJob extends JobBase {
-  readonly status: "queued";
-}
-
-export interface ProcessingJob extends JobBase {
-  readonly status: "processing";
-}
-
-export interface CompletedJob extends JobBase {
-  readonly status: "completed";
-  readonly result: Transcript;
-}
-
-export interface FailedJob extends JobBase {
-  readonly status: "failed";
-  readonly error: {
-    readonly code: string;
-    readonly message: string;
-  };
-}
-
-export type TranscriptionJob =
-  | QueuedJob
-  | ProcessingJob
-  | CompletedJob
-  | FailedJob;

@@ -30,9 +30,7 @@ const EnvironmentSchema = z.object({
   PORT: integerFromEnvironment(3000).pipe(z.number().max(65_535)),
   MAX_UPLOAD_MB: numberFromEnvironment(500),
   MAX_AUDIO_DURATION_MINUTES: numberFromEnvironment(240),
-  TRANSCRIPTION_CONCURRENCY: integerFromEnvironment(1).pipe(z.number().max(16)),
-  JOB_TIMEOUT_MINUTES: numberFromEnvironment(240),
-  JOB_TTL_MINUTES: numberFromEnvironment(60),
+  PROCESS_TIMEOUT_MINUTES: numberFromEnvironment(240),
   WHISPER_MODEL: WhisperModelSchema.default("base"),
   WHISPER_LANGUAGE: z.string().min(2).max(16).default("auto"),
   WHISPER_THREADS: integerFromEnvironment(4).pipe(z.number().max(128)),
@@ -48,9 +46,7 @@ export interface AppConfig {
   readonly port: number;
   readonly maxUploadBytes: number;
   readonly maxAudioDurationSeconds: number;
-  readonly transcriptionConcurrency: number;
-  readonly jobTimeoutMs: number;
-  readonly jobTtlMs: number;
+  readonly processTimeoutMs: number;
   readonly whisper: {
     readonly model: (typeof modelNames)[number];
     readonly language: string;
@@ -73,9 +69,7 @@ export function loadConfig(
     port: parsed.PORT,
     maxUploadBytes: Math.floor(parsed.MAX_UPLOAD_MB * 1024 * 1024),
     maxAudioDurationSeconds: parsed.MAX_AUDIO_DURATION_MINUTES * 60,
-    transcriptionConcurrency: parsed.TRANSCRIPTION_CONCURRENCY,
-    jobTimeoutMs: parsed.JOB_TIMEOUT_MINUTES * 60 * 1000,
-    jobTtlMs: parsed.JOB_TTL_MINUTES * 60 * 1000,
+    processTimeoutMs: parsed.PROCESS_TIMEOUT_MINUTES * 60 * 1000,
     whisper: {
       model: parsed.WHISPER_MODEL,
       language: parsed.WHISPER_LANGUAGE,
@@ -83,6 +77,6 @@ export function loadConfig(
       cliPath: resolve(cwd, parsed.WHISPER_CLI_PATH),
       modelPath: resolve(modelDirectory, `ggml-${parsed.WHISPER_MODEL}.bin`),
     },
-    workDirectory: resolve(cwd, "data/jobs"),
+    workDirectory: resolve(cwd, "data/transcriptions"),
   };
 }

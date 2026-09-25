@@ -16,12 +16,6 @@ export class ValidationError extends AppError {
   }
 }
 
-export class NotFoundError extends AppError {
-  public constructor(message: string) {
-    super("NOT_FOUND", message, 404);
-  }
-}
-
 export class DependencyError extends AppError {
   public constructor(message: string, options?: ErrorOptions) {
     super("DEPENDENCY_ERROR", message, 500, options);

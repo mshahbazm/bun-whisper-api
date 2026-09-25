@@ -1,19 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createJobQueue, createJobStore } from "../src/transcription/jobs";
 import { createApp } from "../src/transcription/routes";
 import { createTranscriptionService } from "../src/transcription/service";
+import type { Transcript } from "../src/transcription/types";
 import { createSilentWav } from "./helpers";
 
 describe("transcription API", () => {
   test("exposes health and not-found responses", async () => {
     const app = createApp({
-      async submit() {
-        throw new Error("unreachable");
-      },
-      get() {
+      async transcribe() {
         throw new Error("unreachable");
       },
     });
@@ -29,12 +26,9 @@ describe("transcription API", () => {
     });
   });
 
-  test("accepts an audio file and exposes the completed job", async () => {
+  test("accepts an audio file and returns the transcript", async () => {
     const root = await mkdtemp(join(tmpdir(), "stt-api-test-"));
-    const queue = createJobQueue(1);
-    const jobs = createTranscriptionService({
-      store: createJobStore(60_000),
-      queue,
+    const transcriptions = createTranscriptionService({
       workDirectory: root,
       maxUploadBytes: 1024 * 1024,
       defaultLanguage: "auto",
@@ -47,7 +41,7 @@ describe("transcription API", () => {
         };
       },
     });
-    const app = createApp(jobs);
+    const app = createApp(transcriptions);
     const body = new FormData();
     body.set("audio", createSilentWav());
 
@@ -58,24 +52,13 @@ describe("transcription API", () => {
           body,
         }),
       );
-      expect(createResponse.status).toBe(202);
-      const created = (await createResponse.json()) as {
-        id: string;
-        status: string;
-      };
-      expect(created.status).toBe("queued");
-
-      await queue.drained();
-      const response = await app.request(
-        new Request(`http://localhost/v1/transcriptions/${created.id}`),
-      );
-      const completed = (await response.json()) as {
-        status: string;
-        result?: { text: string };
-      };
-
-      expect(completed?.status).toBe("completed");
-      expect(completed?.result?.text).toBe("Hello.");
+      expect(createResponse.status).toBe(200);
+      const transcript = (await createResponse.json()) as Transcript;
+      expect(transcript.text).toBe("Hello.");
+      expect(transcript.segments).toEqual([
+        { id: 0, startSeconds: 0, endSeconds: 1, text: "Hello." },
+      ]);
+      expect(await readdir(root)).toEqual([]);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -83,9 +66,7 @@ describe("transcription API", () => {
 
   test("rejects requests without an audio file", async () => {
     const root = await mkdtemp(join(tmpdir(), "stt-api-test-"));
-    const jobs = createTranscriptionService({
-      store: createJobStore(60_000),
-      queue: createJobQueue(1),
+    const transcriptions = createTranscriptionService({
       workDirectory: root,
       maxUploadBytes: 1024,
       defaultLanguage: "auto",
@@ -96,7 +77,7 @@ describe("transcription API", () => {
     const form = new FormData();
     form.set("language", "en");
     try {
-      const response = await createApp(jobs).request(
+      const response = await createApp(transcriptions).request(
         new Request("http://localhost/v1/transcriptions", {
           method: "POST",
           body: form,
