@@ -67,13 +67,13 @@ The transcription endpoint expects `multipart/form-data` with:
 ```text
 POST audio file
     ↓
-Hono validates the multipart input
+Hono middleware validates the multipart input
     ↓
-The transcription function writes the file to a temporary workspace
+transcribeAudio creates an isolated temporary workspace
     ↓
-FFprobe validates the audio and reads its duration
+prepareAudio checks the upload limits and stores the file
     ↓
-FFmpeg converts it to mono 16 kHz WAV
+prepareAudio validates it with FFprobe and normalizes it with FFmpeg
     ↓
 whisper.cpp produces text and segment timestamps
     ↓
