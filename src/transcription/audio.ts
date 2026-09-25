@@ -1,6 +1,18 @@
+import { join } from "node:path";
 import { z } from "zod";
 import { runCommand } from "../command";
-import { ValidationError } from "../errors";
+import { AppError, ValidationError } from "../errors";
+
+interface PrepareAudioOptions {
+  readonly maxUploadBytes: number;
+  readonly maxDurationSeconds: number;
+  readonly timeoutMs: number;
+}
+
+interface PreparedAudio {
+  readonly path: string;
+  readonly durationSeconds: number;
+}
 
 const ProbeOutputSchema = z.object({
   streams: z.array(
@@ -13,7 +25,7 @@ const ProbeOutputSchema = z.object({
   }),
 });
 
-export async function probeAudio(
+async function probeAudio(
   inputPath: string,
   timeoutMs: number,
 ): Promise<number> {
@@ -80,7 +92,7 @@ export async function probeAudio(
   return durationSeconds;
 }
 
-export async function normalizeAudio(
+async function normalizeAudio(
   inputPath: string,
   outputPath: string,
   timeoutMs: number,
@@ -110,6 +122,60 @@ export async function normalizeAudio(
     throw new ValidationError(
       "UNSUPPORTED_AUDIO",
       "The provided audio could not be converted for transcription.",
+      { cause: error },
+    );
+  }
+}
+
+export async function prepareAudio(
+  file: File,
+  workspace: string,
+  options: PrepareAudioOptions,
+): Promise<PreparedAudio> {
+  validateUpload(file, options.maxUploadBytes);
+
+  const inputPath = join(workspace, "input");
+  await saveUpload(inputPath, file);
+
+  const durationSeconds = await probeAudio(inputPath, options.timeoutMs);
+  if (durationSeconds > options.maxDurationSeconds) {
+    throw new ValidationError(
+      "AUDIO_TOO_LONG",
+      `Audio duration exceeds the configured limit of ${options.maxDurationSeconds / 60} minutes.`,
+    );
+  }
+
+  const normalizedPath = join(workspace, "normalized.wav");
+  await normalizeAudio(inputPath, normalizedPath, options.timeoutMs);
+
+  return { path: normalizedPath, durationSeconds };
+}
+
+function validateUpload(file: File, maxUploadBytes: number): void {
+  if (file.size === 0) {
+    throw new ValidationError(
+      "EMPTY_FILE",
+      "The provided audio file is empty.",
+    );
+  }
+
+  if (file.size > maxUploadBytes) {
+    throw new AppError(
+      "UPLOAD_TOO_LARGE",
+      "The provided audio file exceeds the configured size limit.",
+      413,
+    );
+  }
+}
+
+async function saveUpload(path: string, file: File): Promise<void> {
+  try {
+    await Bun.write(path, file);
+  } catch (error) {
+    throw new AppError(
+      "UPLOAD_WRITE_FAILED",
+      "The provided audio file could not be stored temporarily.",
+      500,
       { cause: error },
     );
   }

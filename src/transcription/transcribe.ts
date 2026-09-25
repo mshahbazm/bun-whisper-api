@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
-import { AppError, ValidationError } from "../errors";
-import { normalizeAudio, probeAudio } from "./audio";
+import { ValidationError } from "../errors";
+import { prepareAudio } from "./audio";
 import type { Transcript } from "./types";
 import { TranscriptionOptionsSchema } from "./types";
 import type { Transcriber } from "./whisper";
@@ -20,8 +20,6 @@ export async function transcribeAudio(
   language: string | undefined,
   options: TranscribeAudioOptions,
 ): Promise<Transcript> {
-  validateUpload(file, options.maxUploadBytes);
-
   const transcriptionOptions = TranscriptionOptionsSchema.safeParse({
     language: language ?? options.defaultLanguage,
   });
@@ -34,79 +32,27 @@ export async function transcribeAudio(
   }
 
   const workspace = await createWorkspace(options.workDirectory);
-  const inputPath = join(workspace, "input");
 
   try {
-    await saveUpload(inputPath, file);
-    const durationSeconds = await validateAudio(
-      inputPath,
-      options.maxAudioDurationSeconds,
-      options.mediaTimeoutMs,
-    );
-
-    const normalizedPath = join(workspace, "normalized.wav");
-    await normalizeAudio(inputPath, normalizedPath, options.mediaTimeoutMs);
+    const preparedAudio = await prepareAudio(file, workspace, {
+      maxUploadBytes: options.maxUploadBytes,
+      maxDurationSeconds: options.maxAudioDurationSeconds,
+      timeoutMs: options.mediaTimeoutMs,
+    });
     const output = await options.transcriber(
-      normalizedPath,
+      preparedAudio.path,
       workspace,
       transcriptionOptions.data,
     );
 
     return {
       ...output,
-      durationSeconds,
+      durationSeconds: preparedAudio.durationSeconds,
     };
   } finally {
     await removeWorkspace(options.workDirectory, workspace).catch((error) => {
       console.error("Failed to clean up transcription workspace", error);
     });
-  }
-}
-
-async function validateAudio(
-  inputPath: string,
-  maxDurationSeconds: number,
-  timeoutMs: number,
-): Promise<number> {
-  const durationSeconds = await probeAudio(inputPath, timeoutMs);
-
-  if (durationSeconds > maxDurationSeconds) {
-    throw new ValidationError(
-      "AUDIO_TOO_LONG",
-      `Audio duration exceeds the configured limit of ${maxDurationSeconds / 60} minutes.`,
-    );
-  }
-
-  return durationSeconds;
-}
-
-function validateUpload(file: File, maxUploadBytes: number): void {
-  if (file.size === 0) {
-    throw new ValidationError(
-      "EMPTY_FILE",
-      "The provided audio file is empty.",
-    );
-  }
-
-  if (file.size > maxUploadBytes) {
-    throw new AppError(
-      "UPLOAD_TOO_LARGE",
-      "The provided audio file exceeds the configured size limit.",
-      413,
-    );
-  }
-}
-
-async function saveUpload(path: string, file: File): Promise<void> {
-  try {
-    await Bun.write(path, file);
-  } catch (error) {
-    throw new AppError(
-      "UPLOAD_WRITE_FAILED",
-      "The provided audio file could not be stored temporarily.",
-      500,
-      { cause: error },
-    );
   }
 }
 

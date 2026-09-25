@@ -91,9 +91,9 @@ src/
 ├── config.ts                  Reads and validates environment variables
 ├── errors.ts                  Defines consistent application errors
 └── transcription/
-    ├── routes.ts              Hono routes and multipart request handling
+    ├── routes.ts              Hono routes and request-validation middleware
     ├── transcribe.ts          Runs the complete transcription flow
-    ├── audio.ts               FFprobe validation and FFmpeg conversion
+    ├── audio.ts               Validates, stores, and normalizes uploaded audio
     ├── whisper.ts             Runs whisper.cpp and parses its JSON
     └── types.ts               Transcript and segment types
 
@@ -105,9 +105,11 @@ scripts/
 
 Start with `src/index.ts`. It loads the configuration, connects whisper.cpp and `transcribeAudio` to the Hono application, and exports the server options that Bun starts automatically.
 
-Next, `src/transcription/routes.ts` defines the health and transcription endpoints. The transcription route reads the multipart form, validates the `audio` file and optional language, and calls `transcribeAudio`.
+Next, `src/transcription/routes.ts` defines the health and transcription endpoints. Its middleware validates the multipart form and provides a typed audio file and optional language to the transcription route.
 
-`src/transcription/transcribe.ts` checks the file size, creates an isolated temporary workspace, saves the uploaded file, validates and normalizes it with the functions from `audio.ts`, and sends it to the function in `whisper.ts`. Cleanup runs in `finally`, whether transcription succeeds or fails.
+`src/transcription/transcribe.ts` creates an isolated temporary workspace, asks `audio.ts` to prepare the upload, and sends the normalized audio to `whisper.ts`. Cleanup runs in `finally`, whether transcription succeeds or fails.
+
+`src/transcription/audio.ts` owns the complete audio-preparation step: upload limits, temporary storage, FFprobe inspection, duration limits, and FFmpeg normalization.
 
 ## Engineering decisions
 
