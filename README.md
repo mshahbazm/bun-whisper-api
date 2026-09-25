@@ -102,11 +102,9 @@ scripts/
 └── setup.ts                   Builds whisper.cpp and downloads the model
 ```
 
-The application uses functions rather than service classes. `server.ts` creates the functions and passes their dependencies explicitly.
-
 ## Code walkthrough
 
-This is the simplest order to follow when reading or demonstrating the code.
+Follow the files in this order when demonstrating the code.
 
 ### 1. Start with `src/server.ts`
 
@@ -198,7 +196,7 @@ GET job endpoint returns the result
 
 Bun provides the HTTP server, package runner, file APIs, and test runner. The project uses strict TypeScript, while Zod validates values that enter at runtime, including environment variables and whisper.cpp output.
 
-The API only needs three routes, so Bun's native server is enough and an additional web framework is not necessary.
+Bun's native HTTP server handles the three API routes without an additional framework dependency.
 
 ### whisper.cpp and model choice
 
@@ -237,7 +235,7 @@ The database would only need the account ID, job status, storage keys, and small
 
 ### Polling and webhooks
 
-The current API uses polling because it keeps the assessment small. A production version could accept a signed webhook URL and deliver the result with retry and duplicate-delivery protection.
+The current API exposes job status through polling. A production version could accept a signed webhook URL and deliver the result with retry and duplicate-delivery protection.
 
 ## Configuration
 
