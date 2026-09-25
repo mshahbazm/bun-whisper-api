@@ -38,14 +38,11 @@ export async function transcribeAudio(
 
   try {
     await saveUpload(inputPath, file);
-    const durationSeconds = await probeAudio(inputPath, options.mediaTimeoutMs);
-
-    if (durationSeconds > options.maxAudioDurationSeconds) {
-      throw new ValidationError(
-        "AUDIO_TOO_LONG",
-        `Audio duration exceeds the configured limit of ${options.maxAudioDurationSeconds / 60} minutes.`,
-      );
-    }
+    const durationSeconds = await validateAudio(
+      inputPath,
+      options.maxAudioDurationSeconds,
+      options.mediaTimeoutMs,
+    );
 
     const normalizedPath = join(workspace, "normalized.wav");
     await normalizeAudio(inputPath, normalizedPath, options.mediaTimeoutMs);
@@ -64,6 +61,23 @@ export async function transcribeAudio(
       console.error("Failed to clean up transcription workspace", error);
     });
   }
+}
+
+async function validateAudio(
+  inputPath: string,
+  maxDurationSeconds: number,
+  timeoutMs: number,
+): Promise<number> {
+  const durationSeconds = await probeAudio(inputPath, timeoutMs);
+
+  if (durationSeconds > maxDurationSeconds) {
+    throw new ValidationError(
+      "AUDIO_TOO_LONG",
+      `Audio duration exceeds the configured limit of ${maxDurationSeconds / 60} minutes.`,
+    );
+  }
+
+  return durationSeconds;
 }
 
 function validateUpload(file: File, maxUploadBytes: number): void {
