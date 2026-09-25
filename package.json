@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --watch src/server.ts",
-    "start": "bun src/server.ts",
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
     "setup": "bun scripts/setup.ts",
     "test": "bun test --cwd ./tests",
     "typecheck": "bunx tsc --noEmit",

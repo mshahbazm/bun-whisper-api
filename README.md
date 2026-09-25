@@ -86,10 +86,10 @@ The API returns the transcript
 
 ```text
 src/
-├── server.ts                  Starts the API and connects the modules
+├── index.ts                   Configures Hono and starts it with Bun
+├── command.ts                 Runs FFmpeg, FFprobe, and whisper.cpp
 ├── config.ts                  Reads and validates environment variables
 ├── errors.ts                  Defines consistent application errors
-├── process.ts                 Runs external commands safely
 └── transcription/
     ├── routes.ts              Hono routes and multipart request handling
     ├── transcribe.ts          Runs the complete transcription flow
@@ -103,7 +103,7 @@ scripts/
 
 ## Code walkthrough
 
-Start with `src/server.ts`. It loads the configuration, connects whisper.cpp and `transcribeAudio` to the Hono application, and starts the server.
+Start with `src/index.ts`. It loads the configuration, connects whisper.cpp and `transcribeAudio` to the Hono application, and exports the server options that Bun starts automatically.
 
 Next, `src/transcription/routes.ts` defines the health and transcription endpoints. The transcription route reads the multipart form, validates the `audio` file and optional language, and calls `transcribeAudio`.
 

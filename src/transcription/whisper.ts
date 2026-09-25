@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { z } from "zod";
+import { runCommand } from "../command";
 import { DependencyError } from "../errors";
-import { runProcess } from "../process";
 import type { Segment, TranscriptionOptions } from "./types";
 
 export interface TranscriptionOutput {
@@ -71,7 +71,7 @@ export async function transcribeWithWhisper(
   const outputBase = join(outputDirectory, "whisper-result");
 
   try {
-    await runProcess(
+    await runCommand(
       config.cliPath,
       [
         "--model",

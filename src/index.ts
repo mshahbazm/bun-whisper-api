@@ -1,3 +1,4 @@
+import type { Serve } from "bun";
 import { loadConfig } from "./config";
 import { createApp } from "./transcription/routes";
 import { transcribeAudio } from "./transcription/transcribe";
@@ -25,12 +26,10 @@ const app = createApp((file, language) =>
   }),
 );
 
-const server = Bun.serve({
+export default {
   hostname: config.host,
   port: config.port,
   maxRequestBodySize: config.maxUploadBytes + 1024 * 1024,
   idleTimeout: 0,
   fetch: app.fetch,
-});
-
-console.log(`STT API listening on ${server.url}`);
+} satisfies Serve.Options<undefined>;

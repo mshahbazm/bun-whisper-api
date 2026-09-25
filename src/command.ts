@@ -1,6 +1,6 @@
 import { DependencyError } from "./errors";
 
-export async function runProcess(
+export async function runCommand(
   executable: string,
   args: readonly string[],
   timeoutMs: number,

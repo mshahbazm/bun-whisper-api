@@ -1,6 +1,6 @@
 import { z } from "zod";
+import { runCommand } from "../command";
 import { ValidationError } from "../errors";
-import { runProcess } from "../process";
 
 const ProbeOutputSchema = z.object({
   streams: z.array(
@@ -20,7 +20,7 @@ export async function probeAudio(
   let output: string;
 
   try {
-    ({ stdout: output } = await runProcess(
+    ({ stdout: output } = await runCommand(
       "ffprobe",
       [
         "-v",
@@ -86,7 +86,7 @@ export async function normalizeAudio(
   timeoutMs: number,
 ): Promise<void> {
   try {
-    await runProcess(
+    await runCommand(
       "ffmpeg",
       [
         "-hide_banner",

@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
+import { runCommand } from "../src/command";
 import { loadConfig, WhisperModelSchema } from "../src/config";
-import { runProcess } from "../src/process";
 
 const whisperVersion = "v1.9.4";
 const root = process.cwd();
@@ -21,7 +21,7 @@ await mkdir(resolve(root, "vendor"), { recursive: true });
 
 if (!(await Bun.file(resolve(whisperDirectory, "CMakeLists.txt")).exists())) {
   console.log(`Installing whisper.cpp ${whisperVersion}...`);
-  await runProcess(
+  await runCommand(
     "git",
     [
       "clone",
@@ -37,12 +37,12 @@ if (!(await Bun.file(resolve(whisperDirectory, "CMakeLists.txt")).exists())) {
 }
 
 console.log("Building whisper.cpp...");
-await runProcess(
+await runCommand(
   "cmake",
   ["-S", whisperDirectory, "-B", resolve(whisperDirectory, "build")],
   10 * 60 * 1000,
 );
-await runProcess(
+await runCommand(
   "cmake",
   [
     "--build",
@@ -58,7 +58,7 @@ const modelPath = resolve(modelDirectory, `ggml-${model}.bin`);
 if (!(await Bun.file(modelPath).exists())) {
   await mkdir(modelDirectory, { recursive: true });
   console.log(`Downloading Whisper model "${model}"...`);
-  await runProcess(
+  await runCommand(
     "bash",
     [
       resolve(whisperDirectory, "models/download-ggml-model.sh"),
