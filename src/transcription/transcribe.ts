@@ -1,9 +1,7 @@
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
-import { ValidationError } from "../errors";
 import { prepareAudio } from "./audio";
-import type { Transcript } from "./types";
-import { TranscriptionOptionsSchema } from "./types";
+import type { Transcript, WhisperLanguage } from "./types";
 import type { Transcriber } from "./whisper";
 
 interface TranscribeAudioOptions {
@@ -12,25 +10,14 @@ interface TranscribeAudioOptions {
   readonly maxUploadBytes: number;
   readonly maxAudioDurationSeconds: number;
   readonly mediaTimeoutMs: number;
-  readonly defaultLanguage: string;
+  readonly defaultLanguage: WhisperLanguage;
 }
 
 export async function transcribeAudio(
   file: File,
-  language: string | undefined,
+  language: WhisperLanguage | undefined,
   options: TranscribeAudioOptions,
 ): Promise<Transcript> {
-  const transcriptionOptions = TranscriptionOptionsSchema.safeParse({
-    language: language ?? options.defaultLanguage,
-  });
-  if (!transcriptionOptions.success) {
-    throw new ValidationError(
-      "INVALID_LANGUAGE",
-      'Language must be "auto" or a supported language code.',
-      { cause: transcriptionOptions.error },
-    );
-  }
-
   const workspace = await createWorkspace(options.workDirectory);
 
   try {
@@ -39,11 +26,9 @@ export async function transcribeAudio(
       maxDurationSeconds: options.maxAudioDurationSeconds,
       timeoutMs: options.mediaTimeoutMs,
     });
-    const output = await options.transcriber(
-      preparedAudio.path,
-      workspace,
-      transcriptionOptions.data,
-    );
+    const output = await options.transcriber(preparedAudio.path, workspace, {
+      language: language ?? options.defaultLanguage,
+    });
 
     return {
       ...output,

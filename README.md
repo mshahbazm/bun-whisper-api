@@ -105,7 +105,7 @@ scripts/
 
 Start with `src/index.ts`. It loads the configuration, connects whisper.cpp and `transcribeAudio` to the Hono application, and exports the server options that Bun starts automatically.
 
-Next, `src/transcription/routes.ts` defines the health and transcription endpoints. Its middleware validates the multipart form and provides a typed audio file and optional language to the transcription route.
+Next, `src/transcription/routes.ts` defines the health and transcription endpoints. Hono's Zod validator validates the multipart form and provides a typed audio file and optional language to the transcription route.
 
 `src/transcription/transcribe.ts` creates a temporary folder for the request, asks `audio.ts` to prepare the upload, and sends the normalized audio to `whisper.ts`. Cleanup runs in `finally`, whether transcription succeeds or fails.
 

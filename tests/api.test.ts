@@ -43,7 +43,7 @@ describe("transcription API", () => {
     expect(await response.json()).toEqual(transcript);
   });
 
-  test("rejects requests without an audio file", async () => {
+  test("rejects invalid transcription requests", async () => {
     const app = createApp(async () => {
       throw new Error("unreachable");
     });
@@ -58,10 +58,22 @@ describe("transcription API", () => {
     expect(response.status).toBe(422);
     expect(await response.json()).toEqual({
       error: {
-        code: "AUDIO_REQUIRED",
-        message: 'A file is required in the "audio" field.',
+        code: "INVALID_TRANSCRIPTION_REQUEST",
+        message:
+          "Provide an audio file and, optionally, a supported language code.",
       },
     });
+
+    const unsupportedLanguage = new FormData();
+    unsupportedLanguage.set("audio", createSilentWav());
+    unsupportedLanguage.set("language", "zz");
+    const unsupportedLanguageResponse = await app.request(
+      new Request("http://localhost/v1/transcriptions", {
+        method: "POST",
+        body: unsupportedLanguage,
+      }),
+    );
+    expect(unsupportedLanguageResponse.status).toBe(422);
   });
 
   test("rejects non-multipart requests", async () => {
@@ -75,8 +87,9 @@ describe("transcription API", () => {
     expect(response.status).toBe(422);
     expect(await response.json()).toEqual({
       error: {
-        code: "INVALID_CONTENT_TYPE",
-        message: 'Use multipart/form-data with an "audio" file field.',
+        code: "INVALID_TRANSCRIPTION_REQUEST",
+        message:
+          "Provide an audio file and, optionally, a supported language code.",
       },
     });
   });

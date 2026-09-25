@@ -1,62 +1,39 @@
-import { Hono, type MiddlewareHandler } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { z } from "zod";
 import { AppError, toPublicError, ValidationError } from "../errors";
-import type { Transcript } from "./types";
+import {
+  type Transcript,
+  type WhisperLanguage,
+  WhisperLanguageSchema,
+} from "./types";
 
-type TranscribeAudio = (file: File, language?: string) => Promise<Transcript>;
+type TranscribeAudio = (
+  file: File,
+  language?: WhisperLanguage,
+) => Promise<Transcript>;
 
-interface AppEnv {
-  Variables: {
-    transcriptionInput: {
-      audio: File;
-      language: string | undefined;
-    };
-  };
-}
+const TranscriptionRequestSchema = z.object({
+  audio: z.instanceof(File),
+  language: WhisperLanguageSchema.optional(),
+});
 
-const validateTranscriptionRequest: MiddlewareHandler<AppEnv> = async (
-  context,
-  next,
-) => {
-  const contentType = context.req.header("content-type") ?? "";
-
-  if (!contentType.toLowerCase().startsWith("multipart/form-data")) {
+const validateTranscriptionRequest = zValidator(
+  "form",
+  TranscriptionRequestSchema,
+  (result) => {
+    if (result.success) return;
     throw new ValidationError(
-      "INVALID_CONTENT_TYPE",
-      'Use multipart/form-data with an "audio" file field.',
+      "INVALID_TRANSCRIPTION_REQUEST",
+      "Provide an audio file and, optionally, a supported language code.",
+      { cause: result.error },
     );
-  }
-
-  const body = await context.req.parseBody().catch((error) => {
-    throw new ValidationError(
-      "INVALID_MULTIPART_BODY",
-      "The multipart request body could not be read.",
-      { cause: error },
-    );
-  });
-
-  const audio = body.audio;
-  if (!(audio instanceof File)) {
-    throw new ValidationError(
-      "AUDIO_REQUIRED",
-      'A file is required in the "audio" field.',
-    );
-  }
-
-  const language = body.language;
-  if (language !== undefined && typeof language !== "string") {
-    throw new ValidationError(
-      "INVALID_LANGUAGE",
-      'The "language" field must be text.',
-    );
-  }
-
-  context.set("transcriptionInput", { audio, language });
-  await next();
-};
+  },
+);
 
 export function createApp(transcribeAudio: TranscribeAudio) {
-  const app = new Hono<AppEnv>();
+  const app = new Hono();
 
   app.get("/health", (context) => context.json({ status: "ok" }));
 
@@ -64,7 +41,7 @@ export function createApp(transcribeAudio: TranscribeAudio) {
     "/v1/transcriptions",
     validateTranscriptionRequest,
     async (context) => {
-      const { audio, language } = context.get("transcriptionInput");
+      const { audio, language } = context.req.valid("form");
       return context.json(await transcribeAudio(audio, language));
     },
   );

@@ -121,8 +121,6 @@ export interface Transcript {
   readonly segments: readonly Segment[];
 }
 
-export const TranscriptionOptionsSchema = z.object({
-  language: WhisperLanguageSchema,
-});
-
-export type TranscriptionOptions = z.infer<typeof TranscriptionOptionsSchema>;
+export interface TranscriptionOptions {
+  readonly language: WhisperLanguage;
+}

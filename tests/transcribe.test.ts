@@ -89,17 +89,6 @@ describe("transcribeAudio", () => {
       ).rejects.toMatchObject({ code: "EMPTY_FILE" });
 
       await expect(
-        transcribeAudio(createSilentWav(), "zz", {
-          transcriber,
-          workDirectory,
-          maxUploadBytes: 1024 * 1024,
-          maxAudioDurationSeconds: 60,
-          mediaTimeoutMs: 10_000,
-          defaultLanguage: "auto",
-        }),
-      ).rejects.toMatchObject({ code: "INVALID_LANGUAGE" });
-
-      await expect(
         transcribeAudio(createSilentWav(), "auto", {
           transcriber,
           workDirectory,
