@@ -1,7 +1,7 @@
 import { loadConfig } from "./config";
-import { createRequestHandler } from "./transcription/api";
 import { createJobQueue, createJobStore } from "./transcription/jobs";
 import { createTranscriptionPipeline } from "./transcription/pipeline";
+import { createApp } from "./transcription/routes";
 import { createTranscriptionService } from "./transcription/service";
 import { createWhisperCppTranscriber } from "./transcription/whisper";
 
@@ -28,12 +28,13 @@ const jobs = createTranscriptionService({
   maxUploadBytes: config.maxUploadBytes,
   defaultLanguage: config.whisper.language,
 });
+const app = createApp(jobs);
 
 const server = Bun.serve({
   hostname: config.host,
   port: config.port,
   maxRequestBodySize: config.maxUploadBytes + 1024 * 1024,
-  fetch: createRequestHandler(jobs),
+  fetch: app.fetch,
 });
 
 console.log(`STT API listening on ${server.url}`);

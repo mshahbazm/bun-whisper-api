@@ -1,6 +1,6 @@
 # Speech-to-text API
 
-A small asynchronous transcription API built with Bun, TypeScript, FFmpeg, `fastq`, and `whisper.cpp`.
+A small asynchronous transcription API built with Bun, TypeScript, Hono, FFmpeg, `fastq`, and `whisper.cpp`.
 
 It accepts an audio file, returns a job ID, processes the audio in the background, and returns the completed transcript with timestamps for each segment.
 
@@ -90,7 +90,7 @@ src/
 ├── errors.ts                  Defines consistent application errors
 ├── process.ts                 Runs external commands safely
 └── transcription/
-    ├── api.ts                 HTTP routes and multipart request handling
+    ├── routes.ts              Hono routes and multipart request handling
     ├── service.ts             Creates jobs and schedules background work
     ├── jobs.ts                fastq setup and in-memory job state
     ├── pipeline.ts            Runs the audio-to-transcript steps
@@ -115,13 +115,13 @@ This is the entry point. It loads the configuration and creates:
 - the in-memory job store;
 - the `fastq` queue;
 - the transcription service;
-- the Bun HTTP server.
+- the Hono application and Bun HTTP server.
 
 There is no business logic in this file. It only connects the modules.
 
-### 2. Show the routes in `src/transcription/api.ts`
+### 2. Show the routes in `src/transcription/routes.ts`
 
-`createRequestHandler` contains the three API routes. For `POST /v1/transcriptions`, it reads the multipart form, checks that the `audio` field is a file, and calls `transcriptions.submit()`.
+`createApp` defines the three Hono routes and centralized error handling. For `POST /v1/transcriptions`, it reads the multipart form, checks that the `audio` field is a file, and calls `transcriptions.submit()`.
 
 `GET /v1/transcriptions/:id` reads the current job directly from the job store through the service.
 
@@ -192,11 +192,11 @@ GET job endpoint returns the result
 
 ## Engineering decisions
 
-### Bun and TypeScript
+### Bun, Hono, and TypeScript
 
-Bun provides the HTTP server, package runner, file APIs, and test runner. The project uses strict TypeScript, while Zod validates values that enter at runtime, including environment variables and whisper.cpp output.
+Bun provides the runtime, HTTP server, package runner, file APIs, and test runner. Hono provides the routes, multipart request parsing, path parameters, JSON responses, and centralized error handling.
 
-Bun's native HTTP server handles the three API routes without an additional framework dependency.
+The project uses strict TypeScript, while Zod validates values that enter at runtime, including environment variables and whisper.cpp output.
 
 ### whisper.cpp and model choice
 

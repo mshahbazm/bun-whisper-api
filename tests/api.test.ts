@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createRequestHandler } from "../src/transcription/api";
 import { createJobQueue, createJobStore } from "../src/transcription/jobs";
+import { createApp } from "../src/transcription/routes";
 import { createTranscriptionService } from "../src/transcription/service";
 import { createSilentWav } from "./helpers";
 
@@ -26,12 +26,12 @@ describe("transcription API", () => {
         };
       },
     });
-    const handle = createRequestHandler(jobs);
+    const app = createApp(jobs);
     const body = new FormData();
     body.set("audio", createSilentWav());
 
     try {
-      const createResponse = await handle(
+      const createResponse = await app.request(
         new Request("http://localhost/v1/transcriptions", {
           method: "POST",
           body,
@@ -45,7 +45,7 @@ describe("transcription API", () => {
       expect(created.status).toBe("queued");
 
       await queue.drained();
-      const response = await handle(
+      const response = await app.request(
         new Request(`http://localhost/v1/transcriptions/${created.id}`),
       );
       const completed = (await response.json()) as {
@@ -75,7 +75,7 @@ describe("transcription API", () => {
     const form = new FormData();
     form.set("language", "en");
     try {
-      const response = await createRequestHandler(jobs)(
+      const response = await createApp(jobs).request(
         new Request("http://localhost/v1/transcriptions", {
           method: "POST",
           body: form,
