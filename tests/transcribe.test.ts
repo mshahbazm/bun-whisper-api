@@ -89,7 +89,7 @@ describe("transcribeAudio", () => {
       ).rejects.toMatchObject({ code: "EMPTY_FILE" });
 
       await expect(
-        transcribeAudio(createSilentWav(), "ENGLISH", {
+        transcribeAudio(createSilentWav(), "zz", {
           transcriber,
           workDirectory,
           maxUploadBytes: 1024 * 1024,

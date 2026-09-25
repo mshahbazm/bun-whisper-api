@@ -143,7 +143,7 @@ bun run setup
 
 ### Runtime validation
 
-The project uses strict TypeScript for application code and Zod for values that enter at runtime, including environment variables and whisper.cpp output.
+The project uses strict TypeScript for application code and Zod for values that enter at runtime, including environment variables, supported Whisper language codes, and whisper.cpp output.
 
 ## Production design
 

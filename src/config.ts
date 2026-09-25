@@ -1,5 +1,9 @@
 import { resolve } from "node:path";
 import { z } from "zod";
+import {
+  type WhisperLanguage,
+  WhisperLanguageSchema,
+} from "./transcription/types";
 
 export const modelNames = [
   "tiny",
@@ -32,7 +36,7 @@ const EnvironmentSchema = z.object({
   MAX_AUDIO_DURATION_MINUTES: numberFromEnvironment(240),
   PROCESS_TIMEOUT_MINUTES: numberFromEnvironment(240),
   WHISPER_MODEL: WhisperModelSchema.default("base"),
-  WHISPER_LANGUAGE: z.string().min(2).max(16).default("auto"),
+  WHISPER_LANGUAGE: WhisperLanguageSchema.default("auto"),
   WHISPER_THREADS: integerFromEnvironment(4).pipe(z.number().max(128)),
   WHISPER_CLI_PATH: z
     .string()
@@ -49,7 +53,7 @@ export interface AppConfig {
   readonly processTimeoutMs: number;
   readonly whisper: {
     readonly model: (typeof modelNames)[number];
-    readonly language: string;
+    readonly language: WhisperLanguage;
     readonly threads: number;
     readonly cliPath: string;
     readonly modelPath: string;
