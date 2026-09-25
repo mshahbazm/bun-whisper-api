@@ -8,6 +8,27 @@ import { createTranscriptionService } from "../src/transcription/service";
 import { createSilentWav } from "./helpers";
 
 describe("transcription API", () => {
+  test("exposes health and not-found responses", async () => {
+    const app = createApp({
+      async submit() {
+        throw new Error("unreachable");
+      },
+      get() {
+        throw new Error("unreachable");
+      },
+    });
+
+    const health = await app.request("http://localhost/health");
+    expect(health.status).toBe(200);
+    expect(await health.json()).toEqual({ status: "ok" });
+
+    const missing = await app.request("http://localhost/unknown");
+    expect(missing.status).toBe(404);
+    expect(await missing.json()).toEqual({
+      error: { code: "NOT_FOUND", message: "Route not found." },
+    });
+  });
+
   test("accepts an audio file and exposes the completed job", async () => {
     const root = await mkdtemp(join(tmpdir(), "stt-api-test-"));
     const queue = createJobQueue(1);
